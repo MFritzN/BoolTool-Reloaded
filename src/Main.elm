@@ -1,6 +1,5 @@
 module Main exposing (..)
 
--- A text input for reversing text. Very useful!
 --
 -- Read how it works:
 --   https://guide.elm-lang.org/architecture/text_fields.html
@@ -10,6 +9,9 @@ import Browser
 import Html exposing (Html, Attribute, div, input, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
+import Bool
+import Parser exposing (run)
+import Bool exposing (formula_p)
 
 
 
@@ -57,5 +59,8 @@ view : Model -> Html Msg
 view model =
   div []
     [ input [ placeholder "Formula Input", value model.content, onInput Change ] []
-    , div [] [ text (model.content) ]
+    , div [] [ text (case run formula_p model.content of
+      Ok formula -> Bool.toString formula
+      Err err -> Debug.toString err
+        ) ]
     ]
