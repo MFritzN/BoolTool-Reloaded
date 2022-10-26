@@ -12,6 +12,12 @@ import Html.Events exposing (onInput)
 import Bool
 import Parser exposing (run)
 import Bool exposing (formula_p)
+import Html exposing (button, li, ul)
+import Html.Events exposing (onClick)
+import Set exposing (Set)
+import Parser exposing (DeadEnd)
+import Bool exposing (Formula)
+import List.Extra
 
 
 
@@ -28,12 +34,17 @@ main =
 
 type alias Model =
   { content : String
+    , list: List Bool.Formula
+    , formula: Result (List DeadEnd) Formula
   }
 
 
 init : Model
 init =
-  { content = "" }
+  { content = ""
+  , list = []
+  , formula = run formula_p ""
+  }
 
 
 
@@ -41,26 +52,50 @@ init =
 
 
 type Msg
-  = Change String
+  = Change String | AddToSet | RemoveFromSet Int
 
+resultOk : Result a b -> Bool
+resultOk result =
+  case result of
+      Ok _ -> True
+      Err _ -> False
 
 update : Msg -> Model -> Model
 update msg model =
   case msg of
     Change newContent ->
-      { model | content = newContent }
+      { model | content = newContent, formula = run formula_p newContent}
+    AddToSet ->
+      case model.formula of
+        Ok result -> {model | list = result :: model.list}
+        Err _ -> {model | list = model.list}
+    RemoveFromSet index -> {model | list = List.Extra.removeAt index model.list}
+      
+
 
 
 
 -- VIEW
 
 
+renderFunctionSet : List Formula -> Html Msg
+renderFunctionSet list =
+  ul []
+    (List.indexedMap (\index formula -> li [] [ text (Bool.toString formula), button [onClick (RemoveFromSet index) ] [text "remove"] ]) list)
+
 view : Model -> Html Msg
 view model =
   div []
     [ input [ placeholder "Formula Input", value model.content, onInput Change ] []
-    , div [] [ text (case run formula_p model.content of
+    , div [] [ text (case model.formula of
       Ok formula -> Bool.toString formula
       Err err -> Debug.toString err
         ) ]
+    , div [] [
+      button [onClick AddToSet] [text "Add to Set"]
+
+    , div [] [
+      renderFunctionSet(model.list)
+    ]
+    ]
     ]
