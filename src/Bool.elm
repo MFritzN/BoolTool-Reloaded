@@ -3,7 +3,8 @@ import String exposing (indices)
 import List exposing (unzip)
 import Parser exposing (..)
 import Html.Events exposing (on)
-import Set
+import Dict exposing (Dict)
+import Set exposing (..)
 
 --
 -- A module for representing and handling boolean formulas and sets of functions internally
@@ -54,7 +55,6 @@ term =
         ]
     ]
 
-
 formula_p : Parser Formula
 formula_p =
   term
@@ -84,9 +84,9 @@ type Operator = AndOp | OrOp | ImplOp
 operator : Parser Operator
 operator =
   oneOf
-    [ map (\_ -> AndOp) (symbol "&")
-    , map (\_ -> OrOp) (symbol "|")
-    , map (\_ -> ImplOp) (symbol "->")
+    [ Parser.map (\_ -> AndOp) (symbol "&")
+    , Parser.map (\_ -> OrOp) (symbol "|")
+    , Parser.map (\_ -> ImplOp) (symbol "->")
     ]
 
 
@@ -133,3 +133,37 @@ toString formula =
             "(" ++ (toString(l_form)) ++ "->" ++ (toString(r_form)) ++ ")"
         
 
+getVariables : Formula -> Set String
+getVariables formula =
+  case formula of
+    True -> Set.empty
+    False -> Set.empty
+    Var string -> Set.singleton string
+    Neg subForm -> getVariables subForm
+    And subFormA subFormB -> Set.union (getVariables subFormA) (getVariables subFormB)
+    Or subFormA subFormB -> Set.union (getVariables subFormA) (getVariables subFormB)
+    Impl subFormA subFormB -> Set.union (getVariables subFormA) (getVariables subFormB)
+
+evaluate : Formula -> Dict String Bool -> Result String Bool
+evaluate formula variables =
+  case formula of
+      True -> Ok Basics.True
+      False -> Ok Basics.False
+      Var string -> case Dict.get string variables of
+          Just value -> Ok value
+          Nothing -> Err ("Could not find variable value for " ++ string)
+      Or subFormA subFormB -> case (evaluate subFormA variables, evaluate subFormB variables) of
+          (Err err, _) -> Err err
+          (_, Err err) -> Err err
+          (Ok boolA, Ok boolB) -> Ok (boolA || boolB)
+      And subFormA subFormB -> case (evaluate subFormA variables, evaluate subFormB variables) of
+          (Err err, _) -> Err err
+          (_, Err err) -> Err err
+          (Ok boolA, Ok boolB) -> Ok (boolA && boolB)
+      Neg subForm -> case (evaluate subForm variables) of
+          Ok bool -> Ok (not bool)
+          Err err -> Err err
+      Impl subFormA subFormB -> case (evaluate subFormA variables, evaluate subFormB variables) of
+          (Err err, _) -> Err err
+          (_, Err err) -> Err err
+          (Ok boolA, Ok boolB) -> Ok (not boolA || boolB)
