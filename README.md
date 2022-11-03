@@ -7,3 +7,6 @@ For compilation, this project requires elm to be installed. See: [Installation G
 To run a development server run `elm reactor` in the top directory.
 
 To compile the project to browser ready HTML, run: `elm make src/Main.elm`
+
+## Tests
+The tests are implemented with [elm test](https://package.elm-lang.org/packages/elm-explorations/test). You can execute them with a test runner which requires node.js. I use [node test runner](https://github.com/rtfeldman/node-test-runner) to run my tests. Install it with `npm install --save-dev elm-test` and execute tests in the [test folder](./tests/) by using `npx elm-test`.
