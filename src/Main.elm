@@ -9,14 +9,12 @@ import Browser
 import Html exposing (Html, Attribute, div, input, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
-import Bool
+import BoolImpl exposing (..)
 import Parser exposing (run)
-import Bool exposing (formula_p)
 import Html exposing (button, li, ul)
 import Html.Events exposing (onClick)
 import Set exposing (Set)
 import Parser exposing (DeadEnd)
-import Bool exposing (Formula)
 import List.Extra
 
 
@@ -34,7 +32,7 @@ main =
 
 type alias Model =
   { content : String
-    , list: List Bool.Formula
+    , list: List BoolImpl.Formula
     , formula: Result (List DeadEnd) Formula
   }
 
@@ -57,8 +55,8 @@ type Msg
 resultOk : Result a b -> Bool
 resultOk result =
   case result of
-      Ok _ -> True
-      Err _ -> False
+      Ok _ -> Basics.True
+      Err _ -> Basics.False
 
 update : Msg -> Model -> Model
 update msg model =
@@ -81,14 +79,14 @@ update msg model =
 renderFunctionSet : List Formula -> Html Msg
 renderFunctionSet list =
   ul []
-    (List.indexedMap (\index formula -> li [] [ text (Bool.toString formula), button [onClick (RemoveFromSet index) ] [text "remove"] ]) list)
+    (List.indexedMap (\index formula -> li [] [ text (BoolImpl.toString formula), button [onClick (RemoveFromSet index) ] [text "remove"] ]) list)
 
 view : Model -> Html Msg
 view model =
   div []
     [ input [ placeholder "Formula Input", value model.content, onInput Change ] []
     , div [] [ text (case model.formula of
-      Ok formula -> Bool.toString formula
+      Ok formula -> BoolImpl.toString formula
       Err err -> Debug.toString err
         ) ]
     , div [] [

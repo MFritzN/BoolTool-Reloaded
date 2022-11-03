@@ -1,10 +1,11 @@
-module Bool exposing (..)
+module BoolImpl exposing (..)
 import String exposing (indices)
 import List exposing (unzip)
 import Parser exposing (..)
 import Html.Events exposing (on)
 import Dict exposing (Dict)
 import Set exposing (..)
+import Test exposing (..)
 
 --
 -- A module for representing and handling boolean formulas and sets of functions internally
