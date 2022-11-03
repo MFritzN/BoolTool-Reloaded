@@ -20,6 +20,17 @@ type Formula
     | Impl Formula Formula
     | Var String
 
+equals : Formula -> Formula -> Bool
+equals form1 form2 = case (form1, form2) of
+    (True, True) -> Basics.True
+    (False, False) -> Basics.True
+    (And form11 form12, And form21 form22) -> equals form11 form21 && equals form12 form22
+    (Or form11 form12, Or form21 form22) -> equals form11 form21 && equals form12 form22
+    (Impl form11 form12, Impl form21 form22) -> equals form11 form21 && equals form12 form22
+    (Neg form11, Neg form21) -> equals form11 form21
+    (Var string1, Var string2) -> string1 == string2
+    _ -> Basics.False
+
 
 -- The following code was adapted from
 -- https://github.com/elm/parser/blob/1.1.0/examples/Math.elm (2022-10-25)
@@ -37,6 +48,10 @@ term =
   oneOf
     [ succeed Var
         |= typeVar
+    , succeed True
+        |. keyword "true"
+    , succeed False
+        |. keyword "false"
     , succeed Neg
         |. symbol "!"
         |= lazy (\_ -> term)
