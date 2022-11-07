@@ -53,14 +53,14 @@ term =
     , succeed False
         |. keyword "false"
     , succeed Neg
-        |. symbol "!"
+        |. symbol "~"
         |= lazy (\_ -> term)
     , succeed identity
         |. symbol "("
         |. spaces
         |= oneOf
         [ succeed Neg
-            |. symbol "!"
+            |. symbol "~"
             |= lazy (\_ -> formula_p)
             |. spaces
             |. symbol ")"
@@ -127,7 +127,7 @@ finalize revOps finalExpr =
 
     (expr, ImplOp) :: otherRevOps ->
       finalize otherRevOps (Impl expr finalExpr)
---TODO: Respect precendence!
+--TODO: Respect precendences
 
 
 toString : Formula -> String
@@ -144,7 +144,7 @@ toString formula =
         Or l_form r_form ->
             "(" ++(toString(l_form)) ++ "|" ++ (toString(r_form)) ++ ")"
         Neg r_form ->
-            "(" ++ "!" ++ (toString(r_form)) ++ ")"
+            "(" ++ "~" ++ (toString(r_form)) ++ ")"
         Impl l_form r_form ->
             "(" ++ (toString(l_form)) ++ "->" ++ (toString(r_form)) ++ ")"
         
