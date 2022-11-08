@@ -1,12 +1,8 @@
 module BoolImpl exposing (..)
-import String exposing (indices)
-import List exposing (unzip)
-import Parser exposing (..)
-import Html.Events exposing (on)
+import Parser exposing ((|.), (|=), Parser, end, float, keyword, map, succeed, symbol, variable)
+import Pratt exposing (constant, infixLeft, infixRight, literal, postfix, prefix)
 import Dict exposing (Dict)
 import Set exposing (..)
-import Test exposing (..)
-
 --
 -- A module for representing and handling boolean formulas and sets of functions internally
 --
@@ -33,7 +29,9 @@ equals form1 form2 = case (form1, form2) of
 
 
 -- The following code was adapted from
--- https://github.com/elm/parser/blob/1.1.0/examples/Math.elm (2022-10-25)
+-- https://github.com/dmy/elm-pratt-parser/blob/2.0.0/examples/Math.elm (2022-11-08)
+
+
 typeVar : Parser String
 typeVar = 
   variable
@@ -42,8 +40,46 @@ typeVar =
     , reserved = Set.fromList [ "true", "false"]
     }
 
+typeVarHelp : Pratt.Config Formula -> Parser Formula
+typeVarHelp config =
+    succeed Var
+        |= typeVar
 
-term : Parser Formula
+
+boolExpression : Parser Formula
+boolExpression =
+    Pratt.expression
+        { oneOf =
+            [ typeVarHelp
+            , constant (keyword "true") True
+            , constant (keyword "false") False
+            , prefix 3 (symbol "~") Neg
+            , parenthesizedExpression
+            ]
+        , andThenOneOf =
+            [ infixRight 2 (symbol "&") And
+            , infixRight 2 (symbol "|") Or
+            , infixRight 1 (symbol "->") Impl
+            ]
+        , spaces = Parser.spaces
+        }
+
+
+parenthesizedExpression : Pratt.Config Formula -> Parser Formula
+parenthesizedExpression config =
+    succeed identity
+        |. symbol "("
+        |= Pratt.subExpression 0 config
+        |. symbol ")"
+
+
+formula_p : Parser Formula
+formula_p =
+    succeed identity
+        |= boolExpression
+        |. end
+
+{- term : Parser Formula
 term =
   oneOf
     [ succeed Var
@@ -126,7 +162,7 @@ finalize revOps finalExpr =
       finalize otherRevOps (And expr finalExpr)
 
     (expr, ImplOp) :: otherRevOps ->
-      finalize otherRevOps (Impl expr finalExpr)
+      finalize otherRevOps (Impl expr finalExpr) -}
 --TODO: Respect precendences
 
 
