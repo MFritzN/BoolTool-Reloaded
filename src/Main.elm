@@ -65,7 +65,7 @@ update msg model =
       { model | content = newContent, formula = run formula_p newContent}
     AddToSet ->
       case model.formula of
-        Ok result -> {model | list = result :: model.list}
+        Ok result -> if List.any (\el -> BoolImpl.equals el result) model.list then {model | list = model.list} else {model | list = result :: model.list}
         Err _ -> {model | list = model.list}
     RemoveFromSet index -> {model | list = List.Extra.removeAt index model.list}
       
