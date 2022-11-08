@@ -1,8 +1,8 @@
 module BoolImpl exposing (..)
 
 import Dict exposing (Dict)
-import Parser exposing ((|.), (|=), Parser, end, float, keyword, map, succeed, symbol, variable)
-import Pratt exposing (constant, infixLeft, infixRight, literal, postfix, prefix)
+import Parser exposing ((|.), (|=), Parser, end, keyword, succeed, symbol, variable)
+import Pratt exposing (constant, infixRight, prefix)
 import Set exposing (..)
 
 
