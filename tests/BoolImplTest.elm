@@ -40,6 +40,20 @@ parserSuite =
 
                         Err _ ->
                             Expect.fail "expected the parser to succeed"
+            , test "Xor" <|
+                \_ ->
+                    let
+                        expectedFormula =
+                            Xor (Var "a") (Xor (Var "b") (Var "c"))
+                    in
+                    case run BoolImpl.formula_p "a ^ b ^ c" of
+                        Ok formula ->
+                            equals formula expectedFormula
+                                |> Expect.equal Basics.True
+                                |> Expect.onFail ("Expected Formula " ++ toString expectedFormula ++ " but got " ++ toString formula ++ " instead")
+
+                        Err _ ->
+                            Expect.fail "expected the parser to succeed"
             , test "Impl" <|
                 \_ ->
                     let
@@ -105,6 +119,34 @@ parserSuite =
                             Or (Var "a") (Neg (Var "b"))
                     in
                     case run BoolImpl.formula_p "a | ~b" of
+                        Ok formula ->
+                            equals formula expectedFormula
+                                |> Expect.equal Basics.True
+                                |> Expect.onFail ("Expected Formula " ++ toString expectedFormula ++ " but got " ++ toString formula ++ " instead")
+
+                        Err _ ->
+                            Expect.fail "expected the parser to succeed"
+            , test "1] ~ > ^" <|
+                \_ ->
+                    let
+                        expectedFormula =
+                            Xor (Neg (Var "a")) (Var "b")
+                    in
+                    case run BoolImpl.formula_p "~a ^ b" of
+                        Ok formula ->
+                            equals formula expectedFormula
+                                |> Expect.equal Basics.True
+                                |> Expect.onFail ("Expected Formula " ++ toString expectedFormula ++ " but got " ++ toString formula ++ " instead")
+
+                        Err _ ->
+                            Expect.fail "expected the parser to succeed"
+            , test "2] ~ > ^" <|
+                \_ ->
+                    let
+                        expectedFormula =
+                            Xor (Var "a") (Neg (Var "b"))
+                    in
+                    case run BoolImpl.formula_p "a ^ ~b" of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -189,6 +231,34 @@ parserSuite =
                             Impl (Var "a") (Or (Var "b") (Var "c"))
                     in
                     case run BoolImpl.formula_p "a -> b | c" of
+                        Ok formula ->
+                            equals formula expectedFormula
+                                |> Expect.equal Basics.True
+                                |> Expect.onFail ("Expected Formula " ++ toString expectedFormula ++ " but got " ++ toString formula ++ " instead")
+
+                        Err _ ->
+                            Expect.fail "expected the parser to succeed"
+            , test "1] ^ > ->" <|
+                \_ ->
+                    let
+                        expectedFormula =
+                            Impl (Xor (Var "a") (Var "b")) (Var "c")
+                    in
+                    case run BoolImpl.formula_p "a ^ b -> c" of
+                        Ok formula ->
+                            equals formula expectedFormula
+                                |> Expect.equal Basics.True
+                                |> Expect.onFail ("Expected Formula " ++ toString expectedFormula ++ " but got " ++ toString formula ++ " instead")
+
+                        Err _ ->
+                            Expect.fail "expected the parser to succeed"
+            , test "2] ^ > ->" <|
+                \_ ->
+                    let
+                        expectedFormula =
+                            Impl (Var "a") (Xor (Var "b") (Var "c"))
+                    in
+                    case run BoolImpl.formula_p "a -> b ^ c" of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -364,6 +434,72 @@ evaluationSuite =
 
                         formula =
                             Or (Var "a") (Var "b")
+                    in
+                    case evaluate formula variables of
+                        Ok result ->
+                            result
+                                |> Expect.equal Basics.False
+
+                        Err err ->
+                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
+            ]
+        , describe "evaluate xor"
+            [ test "T ^ T" <|
+                \_ ->
+                    let
+                        variables =
+                            Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.True ) ]
+
+                        formula =
+                            Xor (Var "a") (Var "b")
+                    in
+                    case evaluate formula variables of
+                        Ok result ->
+                            result
+                                |> Expect.equal Basics.False
+
+                        Err err ->
+                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
+            , test "T ^ F" <|
+                \_ ->
+                    let
+                        variables =
+                            Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.False ) ]
+
+                        formula =
+                            Xor (Var "a") (Var "b")
+                    in
+                    case evaluate formula variables of
+                        Ok result ->
+                            result
+                                |> Expect.equal Basics.True
+
+                        Err err ->
+                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
+            , test "F ^ T" <|
+                \_ ->
+                    let
+                        variables =
+                            Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.True ) ]
+
+                        formula =
+                            Xor (Var "a") (Var "b")
+                    in
+                    case evaluate formula variables of
+                        Ok result ->
+                            result
+                                |> Expect.equal Basics.True
+
+                        Err err ->
+                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
+            , test "F ^ F" <|
+                \_ ->
+                    let
+                        variables =
+                            Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.False ) ]
+
+                        formula =
+                            Xor (Var "a") (Var "b")
                     in
                     case evaluate formula variables of
                         Ok result ->
