@@ -1,7 +1,7 @@
 module BoolImplTest exposing (..)
 
 import BoolImpl exposing (..)
-import Dict
+import Dict exposing (..)
 import Expect exposing (..)
 import Parser exposing (run)
 import Set
@@ -293,320 +293,90 @@ evaluationSuite =
                         And (Var "a") (Var "a")
                 in
                 Expect.equal (getVariables formula) expectedVariables
-        , test "evaluate true" <|
-            \_ ->
-                case evaluate BoolImpl.True Dict.empty of
-                    Ok result ->
-                        result
-                            |> Expect.equal Basics.True
-
-                    Err err ->
-                        Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-        , test "evaluate false" <|
-            \_ ->
-                case evaluate BoolImpl.False Dict.empty of
-                    Ok result ->
-                        result
-                            |> Expect.equal Basics.False
-
-                    Err err ->
-                        Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-        , describe "evaluate implication"
-            [ test "T -> T" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.True ) ]
-
-                        formula =
-                            Impl (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.True
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "T -> F" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.False ) ]
-
-                        formula =
-                            Impl (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.False
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "F -> T" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.True ) ]
-
-                        formula =
-                            Impl (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.True
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "F -> F" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.False ) ]
-
-                        formula =
-                            Impl (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.True
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
+        , evaluateTestHelp Dict.empty BoolImpl.True Basics.True
+        , evaluateTestHelp Dict.empty BoolImpl.False Basics.False
+        , let
+            formula =
+                Impl (Var "a") (Var "b")
+          in
+          describe "evaluate implication"
+            [ evaluateTestHelp (Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.True ) ]) formula Basics.True
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.False ) ]) formula Basics.False
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.True ) ]) formula Basics.True
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.False ) ]) formula Basics.True
             ]
-        , describe "evaluate or"
-            [ test "T | T" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.True ) ]
-
-                        formula =
-                            Or (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.True
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "T | F" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.False ) ]
-
-                        formula =
-                            Or (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.True
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "F | T" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.True ) ]
-
-                        formula =
-                            Or (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.True
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "F | F" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.False ) ]
-
-                        formula =
-                            Or (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.False
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
+        , let
+            formula =
+                Or (Var "a") (Var "b")
+          in
+          describe "evaluate or"
+            [ evaluateTestHelp (Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.True ) ]) formula Basics.True
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.False ) ]) formula Basics.True
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.True ) ]) formula Basics.True
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.False ) ]) formula Basics.False
             ]
-        , describe "evaluate xor"
-            [ test "T ^ T" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.True ) ]
-
-                        formula =
-                            Xor (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.False
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "T ^ F" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.False ) ]
-
-                        formula =
-                            Xor (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.True
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "F ^ T" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.True ) ]
-
-                        formula =
-                            Xor (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.True
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "F ^ F" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.False ) ]
-
-                        formula =
-                            Xor (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.False
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
+        , let
+            formula =
+                Xor (Var "a") (Var "b")
+          in
+          describe "evaluate xor"
+            [ evaluateTestHelp (Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.True ) ]) formula Basics.False
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.False ) ]) formula Basics.True
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.True ) ]) formula Basics.True
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.False ) ]) formula Basics.False
             ]
-        , describe "evaluate and"
-            [ test "T & T" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.True ) ]
-
-                        formula =
-                            And (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.True
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "T & F" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.False ) ]
-
-                        formula =
-                            And (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.False
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "F & T" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.True ) ]
-
-                        formula =
-                            And (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.False
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "F & F" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.False ) ]
-
-                        formula =
-                            And (Var "a") (Var "b")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.False
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
+        , let
+            formula =
+                And (Var "a") (Var "b")
+          in
+          describe "evaluate and"
+            [ evaluateTestHelp (Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.True ) ]) formula Basics.True
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.True ), ( "b", Basics.False ) ]) formula Basics.False
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.True ) ]) formula Basics.False
+            , evaluateTestHelp (Dict.fromList [ ( "a", Basics.False ), ( "b", Basics.False ) ]) formula Basics.False
             ]
-        , describe "evaluate not"
-            [ test "~T" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.singleton "a" Basics.True
-
-                        formula =
-                            Neg (Var "a")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.False
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
-            , test "~F" <|
-                \_ ->
-                    let
-                        variables =
-                            Dict.singleton "a" Basics.False
-
-                        formula =
-                            Neg (Var "a")
-                    in
-                    case evaluate formula variables of
-                        Ok result ->
-                            result
-                                |> Expect.equal Basics.True
-
-                        Err err ->
-                            Expect.fail ("This evaluation should have suceeded but it terminated with this Error: " ++ err)
+        , let
+            formula =
+                Neg (Var "a")
+          in
+          describe "evaluate neg"
+            [ evaluateTestHelp (Dict.singleton "a" Basics.True) formula Basics.False
+            , evaluateTestHelp (Dict.singleton "a" Basics.False) formula Basics.True
             ]
         ]
+
+
+evaluateTestHelp : Dict String Bool -> Formula -> Basics.Bool -> Test
+evaluateTestHelp variables formula expected =
+    test (formulaVariblesToString variables formula) <|
+        \_ ->
+            evaluate formula variables
+                |> Expect.equal expected
+                |> Expect.onFail
+                    ("Expected this to be "
+                        ++ (if expected then
+                                "True but got False"
+
+                            else
+                                "False but got True"
+                           )
+                    )
+
+
+formulaVariblesToString : Dict String Bool -> Formula -> String
+formulaVariblesToString variables formula =
+    formula
+        |> toString
+        |> String.map
+            (\c ->
+                Dict.get (String.fromChar c) variables
+                    |> Maybe.andThen
+                        (\value ->
+                            if value then
+                                Just 'T'
+
+                            else
+                                Just 'F'
+                        )
+                    |> Maybe.withDefault c
+            )

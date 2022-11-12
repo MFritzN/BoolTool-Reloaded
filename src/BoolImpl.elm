@@ -12,6 +12,8 @@ import Set exposing (..)
 --
 
 
+{-| Internal Representation for Boolean Formulas and Functions
+-}
 type Formula
     = False
     | True
@@ -69,7 +71,7 @@ typeVar =
 
 
 typeVarHelp : Pratt.Config Formula -> Parser Formula
-typeVarHelp config =
+typeVarHelp _ =
     succeed Var
         |= typeVar
 
@@ -165,8 +167,16 @@ getVariables formula =
             Set.union (getVariables subFormA) (getVariables subFormB)
 
 
-evaluate : Formula -> Dict String Bool -> Result String Bool
+{-| Evaluate a [`Formula`](BoolImpl#Formula).
+This functions returns `True` if Variable Values are mssing. If this is a possible scnario use [`evaluateSafe`](BoolImpl#evaluateSafe)
+-}
+evaluate : Formula -> Dict String Bool -> Bool
 evaluate formula variables =
+    Result.withDefault Basics.True (evaluateSafe formula variables)
+
+
+evaluateSafe : Formula -> Dict String Bool -> Result String Bool
+evaluateSafe formula variables =
     case formula of
         True ->
             Ok Basics.True
@@ -183,7 +193,7 @@ evaluate formula variables =
                     Err ("Could not find variable value for " ++ string)
 
         Or subFormA subFormB ->
-            case ( evaluate subFormA variables, evaluate subFormB variables ) of
+            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
                 ( Err err, _ ) ->
                     Err err
 
@@ -194,7 +204,7 @@ evaluate formula variables =
                     Ok (boolA || boolB)
 
         And subFormA subFormB ->
-            case ( evaluate subFormA variables, evaluate subFormB variables ) of
+            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
                 ( Err err, _ ) ->
                     Err err
 
@@ -205,7 +215,7 @@ evaluate formula variables =
                     Ok (boolA && boolB)
 
         Neg subForm ->
-            case evaluate subForm variables of
+            case evaluateSafe subForm variables of
                 Ok bool ->
                     Ok (not bool)
 
@@ -213,7 +223,7 @@ evaluate formula variables =
                     Err err
 
         Impl subFormA subFormB ->
-            case ( evaluate subFormA variables, evaluate subFormB variables ) of
+            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
                 ( Err err, _ ) ->
                     Err err
 
@@ -224,7 +234,7 @@ evaluate formula variables =
                     Ok (not boolA || boolB)
 
         Xor subFormA subFormB ->
-            case ( evaluate subFormA variables, evaluate subFormB variables ) of
+            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
                 ( Err err, _ ) ->
                     Err err
 
