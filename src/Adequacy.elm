@@ -11,12 +11,7 @@ existsAllInputNotEqInput : List Formula -> Basics.Bool -> Basics.Bool
 existsAllInputNotEqInput list x =
     List.any
         (\formula ->
-            case evaluate formula (Dict.fromList (List.map (\variable -> ( variable, x )) (Set.toList (getVariables formula)))) of
-                Ok r ->
-                    r /= x
-
-                Err _ ->
-                    Basics.False
+            evaluate formula (Dict.fromList (List.map (\variable -> ( variable, x )) (Set.toList (getVariables formula)))) /= x
         )
         list
 
@@ -51,7 +46,7 @@ isMonotoneHelp formula variables remainingVariables =
                     isMonotoneHelp formula newVariables (Dict.keys newVariables)
 
         currentVar :: remainingVariablesTail ->
-            if not (Result.withDefault Basics.True (BoolImpl.evaluate formula (Dict.insert currentVar Basics.True variables))) && Result.withDefault Basics.True (BoolImpl.evaluate formula (Dict.insert currentVar Basics.True variables)) then
+            if not (BoolImpl.evaluate formula (Dict.insert currentVar Basics.True variables)) && BoolImpl.evaluate formula (Dict.insert currentVar Basics.True variables) then
                 Basics.True
 
             else
