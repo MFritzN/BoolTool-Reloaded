@@ -1,6 +1,6 @@
 module AdequacyTest exposing (..)
 
-import Adequacy exposing (existsAllInputNotEqInput, exsistsIsNotMonotone)
+import Adequacy exposing (existsAllInputNotEqInput, exsistsIsNotMonotone, exsistsIsNotSelfDual)
 import BoolImpl exposing (..)
 import Expect exposing (..)
 import Test exposing (Test, describe, test)
@@ -33,6 +33,14 @@ firstSecondCondition =
             , monotonicityTestHelp [ Or (Var "x") (Var "y") ] Basics.False
             , monotonicityTestHelp [ Xor (Var "x") (Var "y") ] Basics.True
             ]
+        , describe "∃f ∈ X which is not self-dual "
+            [ selfDualTestHelp [ BoolImpl.True ] Basics.True
+            , selfDualTestHelp [ BoolImpl.False ] Basics.True
+            , selfDualTestHelp [ Neg (Var "x") ] Basics.False
+            , selfDualTestHelp [ And (Var "x") (Var "y") ] Basics.True
+            , selfDualTestHelp [ Or (Var "x") (Var "y") ] Basics.True
+            , selfDualTestHelp [ Xor (Var "x") (Var "y") ] Basics.True
+            ]
         ]
 
 
@@ -50,6 +58,32 @@ monotonicityTestHelp testset expect =
         \_ ->
             exsistsIsNotMonotone testset
                 |> Expect.equal expect
+                |> Expect.onFail
+                    ("I expected this to be "
+                        ++ (if expect then
+                                "True but it was False."
+
+                            else
+                                "False but it was True."
+                           )
+                    )
+
+
+selfDualTestHelp : List Formula -> Basics.Bool -> Test
+selfDualTestHelp testset expect =
+    test (testSetToString testset) <|
+        \_ ->
+            exsistsIsNotSelfDual testset
+                |> Expect.equal expect
+                |> Expect.onFail
+                    ("I expected this to be "
+                        ++ (if expect then
+                                "True but it was False."
+
+                            else
+                                "False but it was True."
+                           )
+                    )
 
 
 testSetToString : List Formula -> String

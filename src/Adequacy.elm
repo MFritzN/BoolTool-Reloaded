@@ -17,7 +17,7 @@ existsAllInputNotEqInput list x =
 
 
 
--- is montone
+-- is not montone
 
 
 exsistsIsNotMonotone : List Formula -> Basics.Bool
@@ -29,13 +29,13 @@ isNotMontone : Formula -> Basics.Bool
 isNotMontone formula =
     let
         variables =
-            Dict.fromList (List.map (\variable -> ( variable, Basics.True )) (Set.toList (getVariables formula)))
+            Dict.fromList (List.map (\variable -> ( variable, Basics.False )) (Set.toList (getVariables formula)))
     in
-    isMonotoneHelp formula variables (Dict.keys variables)
+    isNotMonotoneHelp formula variables (Dict.keys variables)
 
 
-isMonotoneHelp : Formula -> Dict String Bool -> List String -> Bool
-isMonotoneHelp formula variables remainingVariables =
+isNotMonotoneHelp : Formula -> Dict String Bool -> List String -> Bool
+isNotMonotoneHelp formula variables remainingVariables =
     case remainingVariables of
         [] ->
             case iterateVariables variables of
@@ -43,36 +43,47 @@ isMonotoneHelp formula variables remainingVariables =
                     Basics.False
 
                 Just newVariables ->
-                    isMonotoneHelp formula newVariables (Dict.keys newVariables)
+                    isNotMonotoneHelp formula newVariables (Dict.keys newVariables)
 
         currentVar :: remainingVariablesTail ->
-            if not (BoolImpl.evaluate formula (Dict.insert currentVar Basics.True variables)) && BoolImpl.evaluate formula (Dict.insert currentVar Basics.True variables) then
+            if not (BoolImpl.evaluate formula (Dict.insert currentVar Basics.True variables)) && BoolImpl.evaluate formula (Dict.insert currentVar Basics.False variables) then
                 Basics.True
 
             else
-                isMonotoneHelp formula variables remainingVariablesTail
+                isNotMonotoneHelp formula variables remainingVariablesTail
 
 
-{-| Interprets the values in the dictonary as a binary number and increases it by 1 until all digits are 1.
-The function can be used to try every possible combination of variables. To do that start with a dict that only contains False as values.
 
-    iterateVariables {c: False, b: True, a: False} = {c: True, b: False, a: True}
-
--}
-iterateVariables : Dict String Bool -> Maybe (Dict String Bool)
-iterateVariables dict =
-    iterateVariablesHelp [] (Dict.values dict)
-        |> Maybe.andThen (\a -> Just (Dict.fromList (List.map2 Tuple.pair (Dict.keys dict) a)))
+-- is not self-dual
 
 
-iterateVariablesHelp : List Basics.Bool -> List Basics.Bool -> Maybe (List Basics.Bool)
-iterateVariablesHelp changedVariables unchangedVariables =
-    case unchangedVariables of
-        [] ->
-            Nothing
+exsistsIsNotSelfDual : List Formula -> Basics.Bool
+exsistsIsNotSelfDual list =
+    List.any isNotSelfDual list
 
-        Basics.False :: unchangedVariablesTail ->
-            Just (changedVariables ++ Basics.True :: unchangedVariablesTail)
 
-        Basics.True :: unchangedVariablesTail ->
-            iterateVariablesHelp (changedVariables ++ [ Basics.False ]) unchangedVariablesTail
+isNotSelfDual : Formula -> Basics.Bool
+isNotSelfDual formula =
+    let
+        variables =
+            Dict.fromList (List.map (\variable -> ( variable, Basics.False )) (Set.toList (getVariables formula)))
+    in
+    isNotSelfDualHelp formula variables
+
+
+isNotSelfDualHelp : Formula -> Dict String Bool -> Bool
+isNotSelfDualHelp formula variables =
+    let
+        inverse_variables =
+            Dict.map (\_ v -> not v) variables
+    in
+    if evaluate formula variables == evaluate formula inverse_variables then
+        Basics.True
+
+    else
+        case iterateVariables variables of
+            Nothing ->
+                Basics.False
+
+            Just newVariables ->
+                isNotSelfDualHelp formula newVariables
