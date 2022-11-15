@@ -7,7 +7,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import List.Extra
 import Parser exposing (DeadEnd, run)
-import Set exposing (Set)
+import Representations
 
 
 
@@ -26,6 +26,7 @@ type alias Model =
     { content : String
     , list : List BoolImpl.Formula
     , formula : Result (List DeadEnd) Formula
+    , anf : Maybe Formula
     }
 
 
@@ -34,6 +35,7 @@ init =
     { content = ""
     , list = []
     , formula = run formula_p ""
+    , anf = Nothing
     }
 
 
@@ -45,6 +47,7 @@ type Msg
     = Change String
     | AddToSet
     | RemoveFromSet Int
+    | ComputeANF Int
 
 
 resultOk : Result a b -> Bool
@@ -75,6 +78,9 @@ update msg model =
                 Err _ ->
                     { model | list = model.list }
 
+        ComputeANF index ->
+            { model | anf = Maybe.andThen (\a -> Just (Representations.algebraicNormalform a)) (List.Extra.getAt index model.list) }
+
         RemoveFromSet index ->
             { model | list = List.Extra.removeAt index model.list }
 
@@ -86,7 +92,7 @@ update msg model =
 renderFunctionSet : List Formula -> Html Msg
 renderFunctionSet list =
     ul []
-        (List.indexedMap (\index formula -> li [] [ text (BoolImpl.toString formula), button [ onClick (RemoveFromSet index) ] [ text "remove" ] ]) list)
+        (List.indexedMap (\index formula -> li [] [ text (BoolImpl.toString formula), button [ onClick (RemoveFromSet index) ] [ text "remove" ], button [ onClick (ComputeANF index) ] [ text "ANF" ] ]) list)
 
 
 view : Model -> Html Msg
@@ -108,5 +114,6 @@ view model =
             , div []
                 [ renderFunctionSet model.list
                 ]
+            , text (Maybe.withDefault "" (Maybe.andThen (\a -> Just (toString a)) model.anf))
             ]
         ]
