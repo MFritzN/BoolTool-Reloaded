@@ -1,7 +1,9 @@
 module Main exposing (..)
 
+import Adequacy
 import BoolImpl exposing (..)
 import Browser
+import Dict exposing (Dict)
 import Html exposing (Attribute, Html, button, div, input, li, text, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
@@ -95,6 +97,60 @@ renderFunctionSet list =
         (List.indexedMap (\index formula -> li [] [ text (BoolImpl.toString formula), button [ onClick (RemoveFromSet index) ] [ text "remove" ], button [ onClick (ComputeANF index) ] [ text "ANF" ] ]) list)
 
 
+renderPostConditions : List Formula -> Html Msg
+renderPostConditions list =
+    if List.isEmpty list then
+        text ""
+
+    else
+        ul []
+            [ li []
+                [ text
+                    ("∃f ∈ X such that f (0,...,0) ≠ 0: "
+                        ++ (if Adequacy.existsAllInputNotEqInput list Basics.True then
+                                "forfilled"
+
+                            else
+                                "not forfilled"
+                           )
+                    )
+                ]
+            , li []
+                [ text
+                    ("∃f ∈ X such that f (1,...,1) ≠ 1: "
+                        ++ (if Adequacy.existsAllInputNotEqInput list Basics.False then
+                                "forfilled"
+
+                            else
+                                "not forfilled"
+                           )
+                    )
+                ]
+            , li []
+                [ text
+                    ("∃f ∈ X which is not monotone: "
+                        ++ (if Adequacy.exsistsIsNotMonotone list then
+                                "forfilled"
+
+                            else
+                                "not forfilled"
+                           )
+                    )
+                ]
+            , li []
+                [ text
+                    ("∃f ∈ X which is not self-dual: "
+                        ++ (if Adequacy.exsistsIsNotSelfDual list then
+                                "forfilled"
+
+                            else
+                                "not forfilled"
+                           )
+                    )
+                ]
+            ]
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -115,5 +171,10 @@ view model =
                 [ renderFunctionSet model.list
                 ]
             , text (Maybe.withDefault "" (Maybe.andThen (\a -> Just (toString a)) model.anf))
+            ]
+        , div []
+            [ div []
+                [ renderPostConditions model.list
+                ]
             ]
         ]
