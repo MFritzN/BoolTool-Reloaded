@@ -24,7 +24,7 @@ calculateANF formula =
             polishANF (calculateANF x ++ calculateANF y)
 
         Neg x ->
-            polishANF ([ [] ] ++ calculateANF x)
+            polishANF ([] :: calculateANF x)
 
         Or x y ->
             let

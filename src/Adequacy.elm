@@ -3,6 +3,7 @@ module Adequacy exposing (..)
 import BoolImpl exposing (..)
 import Dict exposing (..)
 import Parser exposing (variable)
+import Representations
 import Set
 import Test.Runner.Failure exposing (Reason(..))
 
@@ -87,3 +88,21 @@ isNotSelfDualHelp formula variables =
 
             Just newVariables ->
                 isNotSelfDualHelp formula newVariables
+
+
+
+-- is not affine
+
+
+existsIsNotAffine : List Formula -> Basics.Bool
+existsIsNotAffine formula =
+    List.any isNotAffine formula
+
+
+isNotAffine : Formula -> Basics.Bool
+isNotAffine formula =
+    Representations.calculateANF formula
+        |> List.map List.length
+        |> List.maximum
+        |> Maybe.andThen (\x -> Just (x > 1))
+        |> Maybe.withDefault Basics.False
