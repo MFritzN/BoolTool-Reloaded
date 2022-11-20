@@ -4,61 +4,73 @@ import BoolImpl exposing (..)
 import Set
 
 
-algebraicNormalform : Formula -> Formula
-algebraicNormalform formula =
-    formula
-        |> algebraicNormalformStep1
-        |> simplify
-        |> algebraicNomralFormStep2
-        |> splitANF
-        |> sortANFList
-        |> listToANF
+
+-- ANF - Represented as a List of Lists of Strings whereas Strings represent Variables, a inner list conjunctions and the outer list Disjunctions
 
 
-algebraicNormalformStep1 : Formula -> Formula
-algebraicNormalformStep1 formula =
-    case List.head (List.sort (Set.toList (getVariables formula))) of
-        Nothing ->
-            formula
-
-        Just x1 ->
-            let
-                g =
-                    simplify (replaceVarByValue formula x1 Basics.False)
-
-                h =
-                    Xor (simplify (replaceVarByValue formula x1 Basics.False)) (simplify (replaceVarByValue formula x1 Basics.True))
-            in
-            Xor (algebraicNormalformStep1 g) (And (Var x1) (algebraicNormalformStep1 h))
-
-
-algebraicNomralFormStep2 : Formula -> Formula
-algebraicNomralFormStep2 formula =
+calculateANF : Formula -> List (List String)
+calculateANF formula =
     case formula of
-        Xor form1 form2 ->
-            Xor (algebraicNomralFormStep2 form1) (algebraicNomralFormStep2 form2)
+        Var x ->
+            [ [ x ] ]
 
-        And (And a b) c ->
-            And (And a b) c
+        BoolImpl.True ->
+            [ [] ]
 
-        And a (And b c) ->
-            And a (And b c)
+        BoolImpl.False ->
+            []
 
-        And a b ->
+        Xor x y ->
+            polishANF (calculateANF x ++ calculateANF y)
+
+        Neg x ->
+            polishANF ([ [] ] ++ calculateANF x)
+
+        Or x y ->
             let
-                leftFormula =
-                    splitANF a
+                xANF =
+                    calculateANF x
 
-                rightFormula =
-                    splitANF b
+                yANF =
+                    calculateANF y
             in
-            List.map (\leftConjunction -> List.map (\rightConjunction -> leftConjunction ++ rightConjunction) rightFormula) leftFormula
-                |> List.foldr (++) []
-                |> listToANF
-                |> simplify
+            polishANF (xANF ++ yANF ++ calculateANF (And x y))
 
-        notReachable ->
-            notReachable
+        And x y ->
+            let
+                xANF =
+                    calculateANF x
+
+                yANF =
+                    calculateANF y
+            in
+            List.map (\xConjunction -> List.map (\yConjunction -> yConjunction ++ xConjunction) xANF) yANF
+                |> List.foldr (++) []
+                |> polishANF
+
+        Impl x y ->
+            calculateANF (And (Neg x) y)
+
+
+polishANF : List (List String) -> List (List String)
+polishANF list =
+    List.map (\conjunction -> Set.toList (Set.fromList conjunction)) list
+        |> sortANFList
+        |> removeDuplicatesFromANF
+
+
+removeDuplicatesFromANF : List (List String) -> List (List String)
+removeDuplicatesFromANF anf =
+    case anf of
+        x :: y :: xs ->
+            if x == y then
+                removeDuplicatesFromANF xs
+
+            else
+                x :: removeDuplicatesFromANF (y :: xs)
+
+        _ ->
+            anf
 
 
 listToANF : List (List String) -> Formula
@@ -106,28 +118,6 @@ listToConjunction list =
                             BoolImpl.False
                         )
                         (listToConjunction xs)
-
-
-splitANF : Formula -> List (List String)
-splitANF formula =
-    case formula of
-        Xor a b ->
-            splitANF a ++ splitANF b
-
-        Var a ->
-            [ [ a ] ]
-
-        BoolImpl.True ->
-            [ [ String.fromInt 1 ] ]
-
-        BoolImpl.False ->
-            [ [ String.fromInt 0 ] ]
-
-        And a b ->
-            [ splitANFAndHelp (And a b) ]
-
-        _ ->
-            []
 
 
 splitANFAndHelp : Formula -> List String
@@ -238,36 +228,3 @@ simplify formula =
 
                 x ->
                     Neg x
-
-
-replaceVarByValue : Formula -> String -> Bool -> Formula
-replaceVarByValue formula var value =
-    case formula of
-        BoolImpl.Var string ->
-            if var == string then
-                if value then
-                    BoolImpl.True
-
-                else
-                    BoolImpl.False
-
-            else
-                Var string
-
-        BoolImpl.And form1 form2 ->
-            And (replaceVarByValue form1 var value) (replaceVarByValue form2 var value)
-
-        BoolImpl.Xor form1 form2 ->
-            Xor (replaceVarByValue form1 var value) (replaceVarByValue form2 var value)
-
-        BoolImpl.Or form1 form2 ->
-            Or (replaceVarByValue form1 var value) (replaceVarByValue form2 var value)
-
-        BoolImpl.Impl form1 form2 ->
-            Impl (replaceVarByValue form1 var value) (replaceVarByValue form2 var value)
-
-        BoolImpl.Neg form1 ->
-            Neg (replaceVarByValue form1 var value)
-
-        x ->
-            x

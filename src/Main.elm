@@ -81,7 +81,7 @@ update msg model =
                     { model | list = model.list }
 
         ComputeANF index ->
-            { model | anf = Maybe.andThen (\a -> Just (Representations.algebraicNormalform a)) (List.Extra.getAt index model.list) }
+            { model | anf = Maybe.andThen (\a -> Just (Representations.listToANF (Representations.calculateANF a))) (List.Extra.getAt index model.list) }
 
         RemoveFromSet index ->
             { model | list = List.Extra.removeAt index model.list }
