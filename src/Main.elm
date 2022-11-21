@@ -4,7 +4,7 @@ import Adequacy
 import BoolImpl exposing (..)
 import Browser
 import Dict exposing (Dict)
-import Html exposing (Attribute, Html, button, div, input, li, text, ul)
+import Html exposing (Attribute, Html, button, div, input, li, table, td, text, th, tr, ul)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import List.Extra
@@ -103,52 +103,162 @@ renderPostConditions list =
         text ""
 
     else
-        ul []
-            [ li []
-                [ text
-                    ("∃f ∈ X such that f (0,...,0) ≠ 0: "
-                        ++ (if Adequacy.existsAllInputNotEqInput list Basics.True then
-                                "forfilled"
-
-                            else
-                                "not forfilled"
-                           )
-                    )
+        table []
+            (tr []
+                [ th [] [ text "Function" ]
+                , th [] [ text "∃f ∈ X such that f (0,...,0) ≠ 0: " ]
+                , th [] [ text "∃f ∈ X such that f (1,...,1) ≠ 1: " ]
+                , th [] [ text "∃f ∈ X which is not monotone:" ]
+                , th [] [ text "∃f ∈ X which is not self-dual:" ]
+                , th [] [ text "∃f ∈ X which is not affine:" ]
+                , th [] [ text "adequat" ]
                 ]
-            , li []
-                [ text
-                    ("∃f ∈ X such that f (1,...,1) ≠ 1: "
-                        ++ (if Adequacy.existsAllInputNotEqInput list Basics.False then
-                                "forfilled"
+                :: List.map
+                    (\formula ->
+                        tr []
+                            [ td [] [ text (toString formula) ]
+                            , td []
+                                [ if Adequacy.allInputNotEqInput formula Basics.False then
+                                    text "✓"
 
-                            else
-                                "not forfilled"
-                           )
-                    )
-                ]
-            , li []
-                [ text
-                    ("∃f ∈ X which is not monotone: "
-                        ++ (if Adequacy.exsistsIsNotMonotone list then
-                                "forfilled"
+                                  else
+                                    text "✕"
+                                ]
+                            , td []
+                                [ if Adequacy.allInputNotEqInput formula Basics.True then
+                                    text "✓"
 
-                            else
-                                "not forfilled"
-                           )
-                    )
-                ]
-            , li []
-                [ text
-                    ("∃f ∈ X which is not self-dual: "
-                        ++ (if Adequacy.exsistsIsNotSelfDual list then
-                                "forfilled"
+                                  else
+                                    text "✕"
+                                ]
+                            , td []
+                                [ if Adequacy.isNotMontone formula then
+                                    text "✓"
 
-                            else
-                                "not forfilled"
-                           )
+                                  else
+                                    text "✕"
+                                ]
+                            , td []
+                                [ if Adequacy.isNotSelfDual formula then
+                                    text "✓"
+
+                                  else
+                                    text "✕"
+                                ]
+                            , td []
+                                [ if Adequacy.isNotAffine formula then
+                                    text "✓"
+
+                                  else
+                                    text "✕"
+                                ]
+                            , td []
+                                [ if Adequacy.isAdequat [ formula ] then
+                                    text "✓"
+
+                                  else
+                                    text "✕"
+                                ]
+                            ]
                     )
-                ]
-            ]
+                    list
+                ++ [ tr []
+                        [ td [] [ text "exists" ]
+                        , td []
+                            [ if Adequacy.existsAllInputNotEqInput list Basics.False then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        , td []
+                            [ if Adequacy.existsAllInputNotEqInput list Basics.True then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        , td []
+                            [ if Adequacy.exsistsIsNotMonotone list then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        , td []
+                            [ if Adequacy.exsistsIsNotSelfDual list then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        , td []
+                            [ if Adequacy.existsIsNotAffine list then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        , td []
+                            [ if Adequacy.isAdequat list then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        ]
+                   ]
+            )
+
+
+
+{- ul []
+   [ li []
+       [ text
+           ("∃f ∈ X such that f (0,...,0) ≠ 0: "
+               ++ (if Adequacy.existsAllInputNotEqInput list Basics.True then
+                       "forfilled"
+
+                   else
+                       "not forfilled"
+                  )
+           )
+       ]
+   , li []
+       [ text
+           ("∃f ∈ X such that f (1,...,1) ≠ 1: "
+               ++ (if Adequacy.existsAllInputNotEqInput list Basics.False then
+                       "forfilled"
+
+                   else
+                       "not forfilled"
+                  )
+           )
+       ]
+   , li []
+       [ text
+           ("∃f ∈ X which is not monotone: "
+               ++ (if Adequacy.exsistsIsNotMonotone list then
+                       "forfilled"
+
+                   else
+                       "not forfilled"
+                  )
+           )
+       ]
+   , li []
+       [ text
+           ("∃f ∈ X which is not self-dual: "
+               ++ (if Adequacy.exsistsIsNotSelfDual list then
+                       "forfilled"
+
+                   else
+                       "not forfilled"
+                  )
+           )
+       ]
+   ]
+-}
 
 
 view : Model -> Html Msg

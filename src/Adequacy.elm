@@ -8,13 +8,24 @@ import Set
 import Test.Runner.Failure exposing (Reason(..))
 
 
+{-| Check if any of the boolean functions does not result in x for all inputs x: ∃formula ∈ List such that f (x,...,x) ≠ x
+
+    existsAllInputNotEqInput [a & b] True = (True && True /= True) = False
+
+-}
 existsAllInputNotEqInput : List Formula -> Basics.Bool -> Basics.Bool
 existsAllInputNotEqInput list x =
-    List.any
-        (\formula ->
-            evaluate formula (Dict.fromList (List.map (\variable -> ( variable, x )) (Set.toList (getVariables formula)))) /= x
-        )
-        list
+    List.any (\formula -> allInputNotEqInput formula x) list
+
+
+{-| Check if a boolean function does not result in x for all inputs x: f (x,...,x) ≠ x
+
+    allInputNotEqInput (a & b) True = (True && True /= True) = False
+
+-}
+allInputNotEqInput : Formula -> Basics.Bool -> Basics.Bool
+allInputNotEqInput formula x =
+    evaluate formula (Dict.fromList (List.map (\variable -> ( variable, x )) (Set.toList (getVariables formula)))) /= x
 
 
 
@@ -106,3 +117,12 @@ isNotAffine formula =
         |> List.maximum
         |> Maybe.andThen (\x -> Just (x > 1))
         |> Maybe.withDefault Basics.False
+
+
+
+-- adequacy
+
+
+isAdequat : List Formula -> Basics.Bool
+isAdequat list =
+    List.all (\a -> a) [ existsAllInputNotEqInput list Basics.False, existsAllInputNotEqInput list Basics.True, exsistsIsNotMonotone list, existsIsNotAffine list, exsistsIsNotSelfDual list ]
