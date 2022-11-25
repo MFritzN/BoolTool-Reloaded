@@ -276,7 +276,7 @@ view model =
                 )
             ]
         , div []
-            [ button [ onClick AddToSet ] [ text "Add to Set" ]
+            [ button [ onClick AddToSet, class "button" ] [ text "Add to Set" ]
             , div []
                 [ renderFunctionSet model.list
                 ]
