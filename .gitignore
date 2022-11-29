@@ -6,3 +6,5 @@ index.html
 node_modules
 .coverage
 .vscode
+src/**/*.css
+repl-temp-*

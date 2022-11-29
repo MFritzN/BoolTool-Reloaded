@@ -12,11 +12,14 @@ import Set exposing (..)
 --
 
 
+{-| Internal Representation for Boolean Formulas and Functions
+-}
 type Formula
     = False
     | True
     | And Formula Formula
     | Or Formula Formula
+    | Xor Formula Formula
     | Neg Formula
     | Impl Formula Formula
     | Var String
@@ -38,6 +41,9 @@ equals form1 form2 =
             equals form11 form21 && equals form12 form22
 
         ( Impl form11 form12, Impl form21 form22 ) ->
+            equals form11 form21 && equals form12 form22
+
+        ( Xor form11 form12, Xor form21 form22 ) ->
             equals form11 form21 && equals form12 form22
 
         ( Neg form11, Neg form21 ) ->
@@ -65,7 +71,7 @@ typeVar =
 
 
 typeVarHelp : Pratt.Config Formula -> Parser Formula
-typeVarHelp config =
+typeVarHelp _ =
     succeed Var
         |= typeVar
 
@@ -83,6 +89,7 @@ boolExpression =
         , andThenOneOf =
             [ infixRight 2 (symbol "&") And
             , infixRight 2 (symbol "|") Or
+            , infixRight 2 (symbol "^") Xor
             , infixRight 1 (symbol "->") Impl
             ]
         , spaces = Parser.spaces
@@ -102,95 +109,6 @@ formula_p =
     succeed identity
         |= boolExpression
         |. end
-
-
-
-{- term : Parser Formula
-   term =
-     oneOf
-       [ succeed Var
-           |= typeVar
-       , succeed True
-           |. keyword "true"
-       , succeed False
-           |. keyword "false"
-       , succeed Neg
-           |. symbol "~"
-           |= lazy (\_ -> term)
-       , succeed identity
-           |. symbol "("
-           |. spaces
-           |= oneOf
-           [ succeed Neg
-               |. symbol "~"
-               |= lazy (\_ -> formula_p)
-               |. spaces
-               |. symbol ")"
-           , succeed identity
-               |= lazy (\_ -> formula_p)
-               |. spaces
-               |. symbol ")"
-           ]
-       ]
-
-   formula_p : Parser Formula
-   formula_p =
-     term
-       |> andThen (expressionHelp [])
-
-
-   {-| If you want to parse operators with different precedence (like `+` and `*`)
-   a good strategy is to go through and create a list of all the operators. From
-   there, you can write separate code to sort out the grouping.
-   -}
-   expressionHelp : List (Formula, Operator) -> Formula -> Parser Formula
-   expressionHelp revOps expr =
-     oneOf
-       [ succeed Tuple.pair
-           |. spaces
-           |= operator
-           |. spaces
-           |= term
-           |> andThen (\(op, newExpr) -> expressionHelp ((expr,op) :: revOps) newExpr)
-       , lazy (\_ -> succeed (finalize revOps expr))
-       ]
-
-
-   type Operator = AndOp | OrOp | ImplOp
-
-
-   operator : Parser Operator
-   operator =
-     oneOf
-       [ Parser.map (\_ -> AndOp) (symbol "&")
-       , Parser.map (\_ -> OrOp) (symbol "|")
-       , Parser.map (\_ -> ImplOp) (symbol "->")
-       ]
-
-
-   {-| We only have `+` and `*` in this parser. If we see a `MulOp` we can
-   immediately group those two expressions. If we see an `AddOp` we wait to group
-   until all the multiplies have been taken care of.
-   This code is kind of tricky, but it is a baseline for what you would need if
-   you wanted to add `/`, `-`, `==`, `&&`, etc. which bring in more complex
-   associativity and precedence rules.
-   -}
-   finalize : List (Formula, Operator) -> Formula -> Formula
-   finalize revOps finalExpr =
-     case revOps of
-       [] ->
-         finalExpr
-
-       (expr, OrOp) :: otherRevOps ->
-         finalize otherRevOps (Or expr finalExpr)
-
-       (expr, AndOp) :: otherRevOps ->
-         finalize otherRevOps (And expr finalExpr)
-
-       (expr, ImplOp) :: otherRevOps ->
-         finalize otherRevOps (Impl expr finalExpr)
--}
---TODO: Respect precendences
 
 
 toString : Formula -> String
@@ -217,6 +135,9 @@ toString formula =
         Impl l_form r_form ->
             "(" ++ toString l_form ++ "->" ++ toString r_form ++ ")"
 
+        Xor l_form r_form ->
+            "(" ++ toString l_form ++ "^" ++ toString r_form ++ ")"
+
 
 getVariables : Formula -> Set String
 getVariables formula =
@@ -242,9 +163,20 @@ getVariables formula =
         Impl subFormA subFormB ->
             Set.union (getVariables subFormA) (getVariables subFormB)
 
+        Xor subFormA subFormB ->
+            Set.union (getVariables subFormA) (getVariables subFormB)
 
-evaluate : Formula -> Dict String Bool -> Result String Bool
+
+{-| Evaluate a [`Formula`](BoolImpl#Formula).
+This functions returns `True` if Variable Values are mssing. If this is a possible scnario use [`evaluateSafe`](BoolImpl#evaluateSafe)
+-}
+evaluate : Formula -> Dict String Bool -> Bool
 evaluate formula variables =
+    Result.withDefault Basics.True (evaluateSafe formula variables)
+
+
+evaluateSafe : Formula -> Dict String Bool -> Result String Bool
+evaluateSafe formula variables =
     case formula of
         True ->
             Ok Basics.True
@@ -261,7 +193,7 @@ evaluate formula variables =
                     Err ("Could not find variable value for " ++ string)
 
         Or subFormA subFormB ->
-            case ( evaluate subFormA variables, evaluate subFormB variables ) of
+            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
                 ( Err err, _ ) ->
                     Err err
 
@@ -272,7 +204,7 @@ evaluate formula variables =
                     Ok (boolA || boolB)
 
         And subFormA subFormB ->
-            case ( evaluate subFormA variables, evaluate subFormB variables ) of
+            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
                 ( Err err, _ ) ->
                     Err err
 
@@ -283,7 +215,7 @@ evaluate formula variables =
                     Ok (boolA && boolB)
 
         Neg subForm ->
-            case evaluate subForm variables of
+            case evaluateSafe subForm variables of
                 Ok bool ->
                     Ok (not bool)
 
@@ -291,7 +223,7 @@ evaluate formula variables =
                     Err err
 
         Impl subFormA subFormB ->
-            case ( evaluate subFormA variables, evaluate subFormB variables ) of
+            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
                 ( Err err, _ ) ->
                     Err err
 
@@ -300,3 +232,39 @@ evaluate formula variables =
 
                 ( Ok boolA, Ok boolB ) ->
                     Ok (not boolA || boolB)
+
+        Xor subFormA subFormB ->
+            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
+                ( Err err, _ ) ->
+                    Err err
+
+                ( _, Err err ) ->
+                    Err err
+
+                ( Ok boolA, Ok boolB ) ->
+                    Ok (xor boolA boolB)
+
+
+{-| Interprets the values in the dictonary as a binary number and increases it by 1 until all digits are 1.
+The function can be used to try every possible combination of variables. To do that start with a dict that only contains False as values.
+
+    iterateVariables {c: False, b: True, a: False} = {c: True, b: False, a: True}
+
+-}
+iterateVariables : Dict String Bool -> Maybe (Dict String Bool)
+iterateVariables dict =
+    iterateVariablesHelp [] (Dict.values dict)
+        |> Maybe.andThen (\a -> Just (Dict.fromList (List.map2 Tuple.pair (Dict.keys dict) a)))
+
+
+iterateVariablesHelp : List Basics.Bool -> List Basics.Bool -> Maybe (List Basics.Bool)
+iterateVariablesHelp changedVariables unchangedVariables =
+    case unchangedVariables of
+        [] ->
+            Nothing
+
+        Basics.False :: unchangedVariablesTail ->
+            Just (changedVariables ++ Basics.True :: unchangedVariablesTail)
+
+        Basics.True :: unchangedVariablesTail ->
+            iterateVariablesHelp (changedVariables ++ [ Basics.False ]) unchangedVariablesTail
