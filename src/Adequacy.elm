@@ -3,10 +3,203 @@ module Adequacy exposing (..)
 import BoolImpl exposing (..)
 import Dict exposing (..)
 import Parser exposing (variable)
-import Representations
 import Set
-import Test.Runner.Failure exposing (Reason(..))
+import Html.Attributes exposing (..)
+import Html exposing (div, button, input, table, tr, td, th, span, text, Html)
+import Html.Events exposing (onInput, onClick)
+import Parser exposing (DeadEnd, run)
+import List.Extra
+import Maybe exposing (andThen)
+import Html.Events exposing (keyCode, on)
+import Json.Decode as Json
+import Representations
 
+-- Model
+type alias Model =
+    { functionInput : String
+    , list : List BoolImpl.Formula
+    , functionInputParsed : Result (List DeadEnd) Formula
+    }
+
+initModel : String -> Model
+initModel _ = {functionInput = ""
+                , list = []
+                , functionInputParsed = run formula_p ""}
+
+-- Update
+
+type Msg
+    = InputChanged String
+    | AddToSet
+    | RemoveFromSet Int
+
+update : Msg -> Model -> (Model, Cmd Msg)
+update msg model =
+    case msg of
+        InputChanged newInput ->
+            ( { model | functionInput = newInput, functionInputParsed = run formula_p newInput }, Cmd.none)
+
+        AddToSet ->
+            case model.functionInputParsed of
+                Ok result ->
+                    if List.any (\el -> BoolImpl.equals el result) model.list then
+                        ({ model | list = model.list, functionInput = "" }, Cmd.none)
+
+                    else
+                        ({ model | list = result :: model.list }, Cmd.none)
+
+                Err _ ->
+                    ({ model | list = model.list }, Cmd.none)
+
+        RemoveFromSet index ->
+            ({ model | list = List.Extra.removeAt index model.list }, Cmd.none)
+
+-- View
+
+renderFunctionSet : List Formula -> Html Msg
+renderFunctionSet list =
+    div [class "tags are-normal"]
+        (List.indexedMap (\index formula -> span [class "tag"] [ text (BoolImpl.toString formula), button [ onClick (RemoveFromSet index), class "delete" ] []]) list)
+
+renderPostConditions : List Formula -> Html Msg
+renderPostConditions list =
+    if List.isEmpty list then
+        text ""
+
+    else
+        table [class "table is-narrow"]
+            (tr []
+                [ th [] [ text "Function" ]
+                , th [] [ text "∃f ∈ X such that f (0,...,0) ≠ 0: " ]
+                , th [] [ text "∃f ∈ X such that f (1,...,1) ≠ 1: " ]
+                , th [] [ text "∃f ∈ X which is not monotone:" ]
+                , th [] [ text "∃f ∈ X which is not self-dual:" ]
+                , th [] [ text "∃f ∈ X which is not affine:" ]
+                , th [] [ text "adequat" ]
+                ]
+                :: List.map
+                    (\formula ->
+                        tr []
+                            [ td [] [ text (toString formula) ]
+                            , td []
+                                [ if allInputNotEqInput formula Basics.False then
+                                    text "✓"
+
+                                  else
+                                    text "✕"
+                                ]
+                            , td []
+                                [ if allInputNotEqInput formula Basics.True then
+                                    text "✓"
+
+                                  else
+                                    text "✕"
+                                ]
+                            , td []
+                                [ if isNotMontone formula then
+                                    text "✓"
+
+                                  else
+                                    text "✕"
+                                ]
+                            , td []
+                                [ if isNotSelfDual formula then
+                                    text "✓"
+
+                                  else
+                                    text "✕"
+                                ]
+                            , td []
+                                [ if isNotAffine formula then
+                                    text "✓"
+
+                                  else
+                                    text "✕"
+                                ]
+                            , td []
+                                [ if isAdequat [ formula ] then
+                                    text "✓"
+
+                                  else
+                                    text "✕"
+                                ]
+                            ]
+                    )
+                    list
+                ++ [ tr []
+                        [ td [] [ text "exists" ]
+                        , td []
+                            [ if existsAllInputNotEqInput list Basics.False then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        , td []
+                            [ if existsAllInputNotEqInput list Basics.True then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        , td []
+                            [ if exsistsIsNotMonotone list then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        , td []
+                            [ if exsistsIsNotSelfDual list then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        , td []
+                            [ if existsIsNotAffine list then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        , td []
+                            [ if isAdequat list then
+                                text "✓"
+
+                              else
+                                text "✕"
+                            ]
+                        ]
+                   ]
+            )
+
+view : Model -> Html Msg
+view model = div [] [
+    div [onEnter AddToSet] [
+        input [ placeholder "Function Input", value model.functionInput, onInput InputChanged, class "input" ] []
+        , text (case model.functionInputParsed of
+            Ok formula -> toString formula
+            Err x -> Debug.toString x
+            )
+        , button [ onClick AddToSet, class "button" ] [ text "Add to Set" ]
+    ]
+    , renderFunctionSet model.list
+    , renderPostConditions model.list
+    ]
+
+onEnter : Msg -> Html.Attribute Msg
+onEnter msg =
+    let
+        isEnter code =
+            if code == 13 then
+                Json.succeed msg
+            else
+                Json.fail "not ENTER"
+    in
+        on "keydown" (Json.andThen isEnter keyCode)
+
+-- Logic
 
 {-| Check if any of the boolean functions does not result in x for all inputs x: ∃formula ∈ List such that f (x,...,x) ≠ x
 

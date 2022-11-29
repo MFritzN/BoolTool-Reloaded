@@ -1,56 +1,70 @@
 module Main exposing (..)
 
-import Adequacy
 import BoolImpl exposing (..)
 import Browser
-import Dict exposing (Dict)
-import Html exposing (Attribute, Html, button, div, input, li, table, td, text, th, tr, ul)
+import Browser.Navigation as Nav
+import Url
+import Html exposing (div, text, a, nav)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
-import List.Extra
-import Parser exposing (DeadEnd, run)
+import Url.Parser exposing (Parser, (<?>), oneOf, s, parse)
+import Url.Parser.Query as Query
+import Adequacy
 import Representations
-
 
 
 -- MAIN
 
-
+main : Program () Model Msg
 main =
-    Browser.sandbox { init = init, update = update, view = view }
+  Browser.application
+    { init = init
+    , view = view
+    , update = update
+    , subscriptions = subscriptions
+    , onUrlChange = UrlChanged
+    , onUrlRequest = LinkClicked
+    }
 
 
 
 -- MODEL
 
-
 type alias Model =
-    { content : String
-    , list : List BoolImpl.Formula
-    , formula : Result (List DeadEnd) Formula
-    , anf : Maybe Formula
+    { url : Url.Url
+    , key : Nav.Key
+    , route : Maybe Route
     }
 
+type Route
+    = Adequacy String Adequacy.Model
+    | Representation String
 
-init : Model
-init =
-    { content = ""
-    , list = []
-    , formula = run formula_p ""
-    , anf = Nothing
-    }
+type PrimitiveRoute
+    = PrimitiveAdequacy (Maybe String)
+    | PrimitiveRepresentation (Maybe String)
 
+init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init _ url key =
+    ({url = url
+    , key = key
+    , route = getRoute url
+    }, Cmd.none)
+
+getRoute : Url.Url -> Maybe Route
+getRoute url = case (parse routeParser url) of
+            Just (PrimitiveRepresentation Nothing) -> Just (Representation "")
+            Just (PrimitiveRepresentation (Just a)) -> Just (Representation a)
+            Just (PrimitiveAdequacy Nothing) -> Just (Adequacy "" (Adequacy.initModel ""))
+            Just (PrimitiveAdequacy (Just a)) -> Just (Adequacy a (Adequacy.initModel "a"))
+            _ -> Nothing
 
 
 -- UPDATE
 
-
 type Msg
-    = Change String
-    | AddToSet
-    | RemoveFromSet Int
-    | ComputeANF Int
-
+    = LinkClicked Browser.UrlRequest
+    | UrlChanged Url.Url
+    | AdequacyMsg Adequacy.Msg
 
 resultOk : Result a b -> Bool
 resultOk result =
@@ -61,230 +75,69 @@ resultOk result =
         Err _ ->
             Basics.False
 
+routeParser : Parser (PrimitiveRoute -> a) a
+routeParser = oneOf
+    [
+        Url.Parser.map PrimitiveAdequacy (s  "adequacy" <?> Query.string "q")
+        , Url.Parser.map PrimitiveRepresentation (s "representation" <?> Query.string "q")
+    ]
 
-update : Msg -> Model -> Model
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        Change newContent ->
-            { model | content = newContent, formula = run formula_p newContent }
+    case (msg, model.route) of
 
-        AddToSet ->
-            case model.formula of
-                Ok result ->
-                    if List.any (\el -> BoolImpl.equals el result) model.list then
-                        { model | list = model.list }
+        (LinkClicked urlRequest, _) ->
+            case urlRequest of
+                Browser.Internal url ->
+                    ({model | route = getRoute url}
+                        , Nav.pushUrl model.key (Url.toString url) )
 
-                    else
-                        { model | list = result :: model.list }
+                Browser.External href ->
+                    ( model, Nav.load href )
 
-                Err _ ->
-                    { model | list = model.list }
+        (UrlChanged url, _) ->
+            ( { model | url = url }
+            , Cmd.none
+            )
 
-        ComputeANF index ->
-            { model | anf = Maybe.andThen (\a -> Just (Representations.listToANF (Representations.calculateANF a))) (List.Extra.getAt index model.list) }
+        (AdequacyMsg aMsg, Just (Adequacy _ aModel)) -> ({model | route = Just (Adequacy "" (Tuple.first (Adequacy.update aMsg aModel)))}, Cmd.map (\m -> AdequacyMsg m) (Tuple.second (Adequacy.update aMsg aModel)))
 
-        RemoveFromSet index ->
-            { model | list = List.Extra.removeAt index model.list }
+        (_,_) -> 
+            -- Ignore messages that come from a non active view
+            ( model, Cmd.none )
 
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+  Sub.none
 
 
 -- VIEW
 
-
-renderFunctionSet : List Formula -> Html Msg
-renderFunctionSet list =
-    ul []
-        (List.indexedMap (\index formula -> li [] [ text (BoolImpl.toString formula), button [ onClick (RemoveFromSet index) ] [ text "remove" ], button [ onClick (ComputeANF index) ] [ text "ANF" ] ]) list)
-
-
-renderPostConditions : List Formula -> Html Msg
-renderPostConditions list =
-    if List.isEmpty list then
-        text ""
-
-    else
-        table []
-            (tr []
-                [ th [] [ text "Function" ]
-                , th [] [ text "∃f ∈ X such that f (0,...,0) ≠ 0: " ]
-                , th [] [ text "∃f ∈ X such that f (1,...,1) ≠ 1: " ]
-                , th [] [ text "∃f ∈ X which is not monotone:" ]
-                , th [] [ text "∃f ∈ X which is not self-dual:" ]
-                , th [] [ text "∃f ∈ X which is not affine:" ]
-                , th [] [ text "adequat" ]
-                ]
-                :: List.map
-                    (\formula ->
-                        tr []
-                            [ td [] [ text (toString formula) ]
-                            , td []
-                                [ if Adequacy.allInputNotEqInput formula Basics.False then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
-                            , td []
-                                [ if Adequacy.allInputNotEqInput formula Basics.True then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
-                            , td []
-                                [ if Adequacy.isNotMontone formula then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
-                            , td []
-                                [ if Adequacy.isNotSelfDual formula then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
-                            , td []
-                                [ if Adequacy.isNotAffine formula then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
-                            , td []
-                                [ if Adequacy.isAdequat [ formula ] then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
-                            ]
-                    )
-                    list
-                ++ [ tr []
-                        [ td [] [ text "exists" ]
-                        , td []
-                            [ if Adequacy.existsAllInputNotEqInput list Basics.False then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
-                        , td []
-                            [ if Adequacy.existsAllInputNotEqInput list Basics.True then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
-                        , td []
-                            [ if Adequacy.exsistsIsNotMonotone list then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
-                        , td []
-                            [ if Adequacy.exsistsIsNotSelfDual list then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
-                        , td []
-                            [ if Adequacy.existsIsNotAffine list then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
-                        , td []
-                            [ if Adequacy.isAdequat list then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
-                        ]
-                   ]
-            )
-
-
-
-{- ul []
-   [ li []
-       [ text
-           ("∃f ∈ X such that f (0,...,0) ≠ 0: "
-               ++ (if Adequacy.existsAllInputNotEqInput list Basics.True then
-                       "forfilled"
-
-                   else
-                       "not forfilled"
-                  )
-           )
-       ]
-   , li []
-       [ text
-           ("∃f ∈ X such that f (1,...,1) ≠ 1: "
-               ++ (if Adequacy.existsAllInputNotEqInput list Basics.False then
-                       "forfilled"
-
-                   else
-                       "not forfilled"
-                  )
-           )
-       ]
-   , li []
-       [ text
-           ("∃f ∈ X which is not monotone: "
-               ++ (if Adequacy.exsistsIsNotMonotone list then
-                       "forfilled"
-
-                   else
-                       "not forfilled"
-                  )
-           )
-       ]
-   , li []
-       [ text
-           ("∃f ∈ X which is not self-dual: "
-               ++ (if Adequacy.exsistsIsNotSelfDual list then
-                       "forfilled"
-
-                   else
-                       "not forfilled"
-                  )
-           )
-       ]
-   ]
--}
-
-
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
-    div []
-        [ input [ placeholder "Formula Input", value model.content, onInput Change ] []
-        , div []
-            [ text
-                (case model.formula of
-                    Ok formula ->
-                        BoolImpl.toString formula
+    {title = "home"
+    , body = [
 
-                    Err err ->
-                        Debug.toString err
-                )
-            ]
-        , div []
-            [ button [ onClick AddToSet, class "button" ] [ text "Add to Set" ]
-            , div []
-                [ renderFunctionSet model.list
-                ]
-            , text (Maybe.withDefault "" (Maybe.andThen (\a -> Just (toString a)) model.anf))
-            ]
-        , div []
-            [ div []
-                [ renderPostConditions model.list
+        nav [class "navbar"] [
+            div [class "navbar-menu is-active"] [
+                div [class "navbar-start"] [
+                    a [class "navbar-item", href "/representation"] [
+                        text "Representations"
+                    ]
+                    , a [class "navbar-item", href "/adequacy"] [
+                        text "Adequacy"
+                    ]
                 ]
             ]
         ]
+        , case model.route of
+            Just (Adequacy _ aModel) -> Html.map (\a -> AdequacyMsg a) (Adequacy.view aModel)
+            Just (Representation _) -> text "Representation"
+            Nothing -> text "404"
+        ]
+    }
+
