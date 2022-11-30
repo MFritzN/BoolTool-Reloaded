@@ -2,64 +2,77 @@ module Adequacy exposing (..)
 
 import BoolImpl exposing (..)
 import Dict exposing (..)
-import Parser exposing (variable)
-import Set
+import Html exposing (Html, button, div, input, span, table, td, text, th, tr)
 import Html.Attributes exposing (..)
-import Html exposing (div, button, input, table, tr, td, th, span, text, Html)
-import Html.Events exposing (onInput, onClick)
-import Parser exposing (DeadEnd, run)
-import List.Extra
-import Maybe exposing (andThen)
-import Html.Events exposing (keyCode, on)
+import Html.Events exposing (keyCode, on, onClick, onInput)
 import Json.Decode as Json
+import List.Extra
+import Maybe
+import Parser exposing (DeadEnd, run, variable)
 import Representations
+import Set
+
+
 
 -- Model
+
+
 type alias Model =
     { functionInput : String
     , list : List BoolImpl.Formula
     , functionInputParsed : Result (List DeadEnd) Formula
     }
 
+
 initModel : String -> Model
-initModel _ = {functionInput = ""
-                , list = []
-                , functionInputParsed = run formula_p ""}
+initModel _ =
+    { functionInput = ""
+    , list = []
+    , functionInputParsed = run formula_p ""
+    }
+
+
 
 -- Update
+
 
 type Msg
     = InputChanged String
     | AddToSet
     | RemoveFromSet Int
 
-update : Msg -> Model -> (Model, Cmd Msg)
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         InputChanged newInput ->
-            ( { model | functionInput = newInput, functionInputParsed = run formula_p newInput }, Cmd.none)
+            ( { model | functionInput = newInput, functionInputParsed = run formula_p newInput }, Cmd.none )
 
         AddToSet ->
             case model.functionInputParsed of
                 Ok result ->
                     if List.any (\el -> BoolImpl.equals el result) model.list then
-                        ({ model | list = model.list, functionInput = "" }, Cmd.none)
+                        ( { model | list = model.list }, Cmd.none )
 
                     else
-                        ({ model | list = result :: model.list }, Cmd.none)
+                        ( { model | list = result :: model.list, functionInput = "" }, Cmd.none )
 
                 Err _ ->
-                    ({ model | list = model.list }, Cmd.none)
+                    ( { model | list = model.list }, Cmd.none )
 
         RemoveFromSet index ->
-            ({ model | list = List.Extra.removeAt index model.list }, Cmd.none)
+            ( { model | list = List.Extra.removeAt index model.list }, Cmd.none )
+
+
 
 -- View
 
+
 renderFunctionSet : List Formula -> Html Msg
 renderFunctionSet list =
-    div [class "tags are-normal"]
-        (List.indexedMap (\index formula -> span [class "tag"] [ text (BoolImpl.toString formula), button [ onClick (RemoveFromSet index), class "delete" ] []]) list)
+    div [ class "tags are-normal box" ]
+        (List.indexedMap (\index formula -> span [ class "tag" ] [ text (BoolImpl.toString formula), button [ onClick (RemoveFromSet index), class "delete" ] [] ]) list)
+
 
 renderPostConditions : List Formula -> Html Msg
 renderPostConditions list =
@@ -67,7 +80,7 @@ renderPostConditions list =
         text ""
 
     else
-        table [class "table is-narrow"]
+        table [ class "table is-narrow box" ]
             (tr []
                 [ th [] [ text "Function" ]
                 , th [] [ text "∃f ∈ X such that f (0,...,0) ≠ 0: " ]
@@ -126,7 +139,7 @@ renderPostConditions list =
                             ]
                     )
                     list
-                ++ [ tr []
+                ++ [ tr [ class "is-selected" ]
                         [ td [] [ text "exists" ]
                         , td []
                             [ if existsAllInputNotEqInput list Basics.False then
@@ -174,19 +187,26 @@ renderPostConditions list =
                    ]
             )
 
+
 view : Model -> Html Msg
-view model = div [] [
-    div [onEnter AddToSet] [
-        input [ placeholder "Function Input", value model.functionInput, onInput InputChanged, class "input" ] []
-        , text (case model.functionInputParsed of
-            Ok formula -> toString formula
-            Err x -> Debug.toString x
-            )
-        , button [ onClick AddToSet, class "button" ] [ text "Add to Set" ]
-    ]
-    , renderFunctionSet model.list
-    , renderPostConditions model.list
-    ]
+view model =
+    div []
+        [ div [ onEnter AddToSet, class "box" ]
+            [ input [ placeholder "Function Input", value model.functionInput, onInput InputChanged, class "input" ] []
+            , text
+                (case model.functionInputParsed of
+                    Ok formula ->
+                        toString formula
+
+                    Err x ->
+                        Debug.toString x
+                )
+            , button [ onClick AddToSet, class "button" ] [ text "Add to Set" ]
+            ]
+        , renderFunctionSet model.list
+        , renderPostConditions model.list
+        ]
+
 
 onEnter : Msg -> Html.Attribute Msg
 onEnter msg =
@@ -194,12 +214,16 @@ onEnter msg =
         isEnter code =
             if code == 13 then
                 Json.succeed msg
+
             else
                 Json.fail "not ENTER"
     in
-        on "keydown" (Json.andThen isEnter keyCode)
+    on "keydown" (Json.andThen isEnter keyCode)
+
+
 
 -- Logic
+
 
 {-| Check if any of the boolean functions does not result in x for all inputs x: ∃formula ∈ List such that f (x,...,x) ≠ x
 

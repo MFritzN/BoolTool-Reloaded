@@ -56,11 +56,6 @@ equals form1 form2 =
             Basics.False
 
 
-
--- The following code was adapted from
--- https://github.com/dmy/elm-pratt-parser/blob/2.0.0/examples/Math.elm (2022-11-08)
-
-
 typeVar : Parser String
 typeVar =
     variable

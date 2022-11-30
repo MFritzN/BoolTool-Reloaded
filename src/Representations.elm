@@ -1,7 +1,76 @@
 module Representations exposing (..)
 
 import BoolImpl exposing (..)
+import Dict exposing (Dict)
+import Html exposing (Html, div, input, table, td, text, th, tr)
+import Html.Attributes exposing (class, placeholder, value)
+import Html.Events exposing (onInput)
+import Parser exposing (DeadEnd, run)
 import Set
+
+
+
+-- Model
+
+
+type alias Model =
+    { formulaInput : String
+    , list : List BoolImpl.Formula
+    , formulaInputParsed : Result (List DeadEnd) Formula
+    }
+
+
+initModel : String -> Model
+initModel _ =
+    { formulaInput = "a&a"
+    , list = []
+    , formulaInputParsed = run formula_p "a&a"
+    }
+
+
+
+-- Update
+
+
+type Msg
+    = InputChanged String
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        InputChanged newInput ->
+            ( { model | formulaInput = newInput, formulaInputParsed = run formula_p newInput }, Cmd.none )
+
+
+
+-- View
+
+
+view : Model -> Html Msg
+view model =
+    div []
+        [ div []
+            [ input [ placeholder "Formula Input", value model.formulaInput, onInput InputChanged, class "input" ] []
+            , text
+                (case model.formulaInputParsed of
+                    Ok formula ->
+                        toString formula
+
+                    Err x ->
+                        Debug.toString x
+                )
+            ]
+        , div []
+            (case model.formulaInputParsed of
+                Ok formula ->
+                    [ renderTruthTable formula
+                    ]
+
+                _ ->
+                    []
+            )
+        ]
 
 
 
@@ -228,3 +297,60 @@ simplify formula =
 
                 x ->
                     Neg x
+
+
+
+-- TruthTable
+-- View
+
+
+renderTruthTable : Formula -> Html Msg
+renderTruthTable formula =
+    let
+        truthTable =
+            calculateTruthTable formula
+    in
+    table [ class "table is-narrow is-striped" ]
+        (tr [] (List.map (\variable -> th [] [ text variable ]) truthTable.vars ++ [ th [] [ text "Result" ] ])
+            :: List.map (\row -> tr [] (List.map (\value -> td [] [ prettyPrintBool value ]) (Tuple.first row) ++ [ td [] [ prettyPrintBool (Tuple.second row) ] ]))
+                truthTable.results
+        )
+
+
+prettyPrintBool : Basics.Bool -> Html Msg
+prettyPrintBool bool =
+    if bool then
+        text "True"
+
+    else
+        text "False"
+
+
+{-| Inner representation of a Truth Table. `vars` defines the order of the results. `results` is a tuple which first contains the input values sorted according to `vars` and secondly the corresponding result for those input variables.
+-}
+type alias TruthTable =
+    { vars : List String
+    , results : List ( List Basics.Bool, Basics.Bool )
+    }
+
+
+{-| Calculates the Truthtable of a given formula in the variable order for the given variables.
+The return value is a
+-}
+calculateTruthTable : Formula -> TruthTable
+calculateTruthTable formula =
+    let
+        variables =
+            Dict.fromList (List.map (\variable -> ( variable, Basics.False )) (Set.toList (getVariables formula)))
+    in
+    { vars = Dict.keys variables, results = ( Dict.values variables, evaluate formula variables ) :: calculateTruthTableHelp formula variables }
+
+
+calculateTruthTableHelp : Formula -> Dict String Basics.Bool -> List ( List Basics.Bool, Basics.Bool )
+calculateTruthTableHelp formula variables =
+    case iterateVariables variables of
+        Nothing ->
+            []
+
+        Just newVariables ->
+            ( Dict.values newVariables, evaluate formula newVariables ) :: calculateTruthTableHelp formula newVariables
