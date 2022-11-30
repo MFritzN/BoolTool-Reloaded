@@ -4,7 +4,7 @@ import Adequacy
 import BoolImpl exposing (..)
 import Browser
 import Browser.Navigation as Nav
-import Html exposing (a, div, nav, text)
+import Html exposing (a, div, h3, nav, text)
 import Html.Attributes exposing (..)
 import Representations
 import Url
@@ -154,7 +154,12 @@ view model =
     { title = "BoolTool Reloaded"
     , body =
         [ nav [ class "navbar" ]
-            [ div [ class "navbar-menu is-active" ]
+            [ div [ class "navbar-brand" ]
+                [ a [ class "navbar-item", href "/" ]
+                    [ h3 [] [ text "BoolTool Reloaded" ]
+                    ]
+                ]
+            , div [ class "navbar-menu is-active" ]
                 [ div [ class "navbar-start" ]
                     [ a [ class "navbar-item", href "/representation" ]
                         [ text "Representations"

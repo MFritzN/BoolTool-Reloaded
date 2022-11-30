@@ -2,10 +2,11 @@ module Representations exposing (..)
 
 import BoolImpl exposing (..)
 import Dict exposing (Dict)
-import Html exposing (Html, div, input, table, td, text, th, tr)
+import Html exposing (Html, div, h2, h3, h4, input, p, table, td, text, th, tr)
 import Html.Attributes exposing (class, placeholder, value)
 import Html.Events exposing (onInput)
 import Parser exposing (DeadEnd, run)
+import Result.Extra
 import Set
 
 
@@ -22,9 +23,9 @@ type alias Model =
 
 initModel : String -> Model
 initModel _ =
-    { formulaInput = "a&a"
+    { formulaInput = ""
     , list = []
-    , formulaInputParsed = run formula_p "a&a"
+    , formulaInputParsed = run formula_p ""
     }
 
 
@@ -50,21 +51,29 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ div []
-            [ input [ placeholder "Formula Input", value model.formulaInput, onInput InputChanged, class "input" ] []
-            , text
-                (case model.formulaInputParsed of
-                    Ok formula ->
-                        toString formula
+        [ div [ class "field" ]
+            [ input
+                ((if Result.Extra.isOk model.formulaInputParsed then
+                    class "is-success"
 
-                    Err x ->
-                        Debug.toString x
+                  else
+                    class "is-danger"
+                 )
+                    :: [ placeholder "Formula Input", value model.formulaInput, onInput InputChanged, class "input" ]
                 )
+                []
+            , case model.formulaInputParsed of
+                Ok formula ->
+                    text (toString formula)
+
+                Err x ->
+                    p [ class "help is-danger" ] [ text (Debug.toString x) ]
             ]
         , div []
             (case model.formulaInputParsed of
                 Ok formula ->
                     [ renderTruthTable formula
+                    , renderANF formula
                     ]
 
                 _ ->
@@ -75,6 +84,18 @@ view model =
 
 
 -- ANF - Represented as a List of Lists of Strings whereas Strings represent Variables, a inner list conjunctions and the outer list Disjunctions
+
+
+renderANF : Formula -> Html Msg
+renderANF formula =
+    let
+        anf =
+            calculateANF formula
+    in
+    div [ class "box content" ]
+        [ h4 [] [ text "ANF" ]
+        , text (toString (listToANF anf))
+        ]
 
 
 calculateANF : Formula -> List (List String)
@@ -310,11 +331,14 @@ renderTruthTable formula =
         truthTable =
             calculateTruthTable formula
     in
-    table [ class "table is-narrow is-striped" ]
-        (tr [] (List.map (\variable -> th [] [ text variable ]) truthTable.vars ++ [ th [] [ text "Result" ] ])
-            :: List.map (\row -> tr [] (List.map (\value -> td [] [ prettyPrintBool value ]) (Tuple.first row) ++ [ td [] [ prettyPrintBool (Tuple.second row) ] ]))
-                truthTable.results
-        )
+    div [ class "content box" ]
+        [ h4 [] [ text "Truth Table" ]
+        , table [ class "table is-narrow is-striped is-bordered" ]
+            (tr [] (List.map (\variable -> th [] [ text variable ]) truthTable.vars ++ [ th [] [ text "Result" ] ])
+                :: List.map (\row -> tr [] (List.map (\value -> td [] [ prettyPrintBool value ]) (Tuple.first row) ++ [ td [] [ prettyPrintBool (Tuple.second row) ] ]))
+                    truthTable.results
+            )
+        ]
 
 
 prettyPrintBool : Basics.Bool -> Html Msg
