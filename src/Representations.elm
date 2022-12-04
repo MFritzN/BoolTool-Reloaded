@@ -234,7 +234,7 @@ splitANFAndHelp formula =
 
 sortANFList : List (List String) -> List (List String)
 sortANFList list =
-    List.sortBy (\a -> String.fromInt (List.length a) ++ List.foldr (++) "" a) (List.map List.sort list)
+    List.sortBy (\a -> String.fromInt (List.length a) ++ List.foldr (++) "" a) list
 
 
 simplify : Formula -> Formula
