@@ -242,7 +242,7 @@ existsAllInputNotEqInput list x =
 -}
 allInputNotEqInput : Formula -> Basics.Bool -> Basics.Bool
 allInputNotEqInput formula x =
-    evaluate formula (Dict.fromList (List.map (\variable -> ( variable, x )) (Set.toList (getVariables formula)))) /= x
+    evaluateUnsafe formula (Dict.fromList (List.map (\variable -> ( variable, x )) (Set.toList (getVariables formula)))) /= x
 
 
 
@@ -275,7 +275,7 @@ isNotMonotoneHelp formula variables remainingVariables =
                     isNotMonotoneHelp formula newVariables (Dict.keys newVariables)
 
         currentVar :: remainingVariablesTail ->
-            if not (BoolImpl.evaluate formula (Dict.insert currentVar Basics.True variables)) && BoolImpl.evaluate formula (Dict.insert currentVar Basics.False variables) then
+            if not (BoolImpl.evaluateUnsafe formula (Dict.insert currentVar Basics.True variables)) && BoolImpl.evaluateUnsafe formula (Dict.insert currentVar Basics.False variables) then
                 Basics.True
 
             else
@@ -306,7 +306,7 @@ isNotSelfDualHelp formula variables =
         inverse_variables =
             Dict.map (\_ v -> not v) variables
     in
-    if evaluate formula variables == evaluate formula inverse_variables then
+    if evaluateUnsafe formula variables == evaluateUnsafe formula inverse_variables then
         Basics.True
 
     else

@@ -165,8 +165,8 @@ getVariables formula =
 {-| Evaluate a [`Formula`](BoolImpl#Formula).
 This functions returns `True` if Variable Values are mssing. If this is a possible scnario use [`evaluateSafe`](BoolImpl#evaluateSafe)
 -}
-evaluate : Formula -> Dict String Bool -> Bool
-evaluate formula variables =
+evaluateUnsafe : Formula -> Dict String Bool -> Bool
+evaluateUnsafe formula variables =
     Result.withDefault Basics.True (evaluateSafe formula variables)
 
 
@@ -180,64 +180,22 @@ evaluateSafe formula variables =
             Ok Basics.False
 
         Var string ->
-            case Dict.get string variables of
-                Just value ->
-                    Ok value
-
-                Nothing ->
-                    Err ("Could not find variable value for " ++ string)
+            Result.fromMaybe ("Could not find value for " ++ string) (Dict.get string variables)
 
         Or subFormA subFormB ->
-            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
-                ( Err err, _ ) ->
-                    Err err
-
-                ( _, Err err ) ->
-                    Err err
-
-                ( Ok boolA, Ok boolB ) ->
-                    Ok (boolA || boolB)
+            Result.map2 (||) (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
         And subFormA subFormB ->
-            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
-                ( Err err, _ ) ->
-                    Err err
-
-                ( _, Err err ) ->
-                    Err err
-
-                ( Ok boolA, Ok boolB ) ->
-                    Ok (boolA && boolB)
+            Result.map2 (&&) (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
         Neg subForm ->
-            case evaluateSafe subForm variables of
-                Ok bool ->
-                    Ok (not bool)
-
-                Err err ->
-                    Err err
+            Result.map not (evaluateSafe subForm variables)
 
         Impl subFormA subFormB ->
-            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
-                ( Err err, _ ) ->
-                    Err err
-
-                ( _, Err err ) ->
-                    Err err
-
-                ( Ok boolA, Ok boolB ) ->
-                    Ok (not boolA || boolB)
+            Result.map2 (\a b -> not a || b) (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
         Xor subFormA subFormB ->
-            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
-                ( Err err, _ ) ->
-                    Err err
-
-                ( _, Err err ) ->
-                    Err err
-
-                ( Ok boolA, Ok boolB ) ->
-                    Ok (xor boolA boolB)
+            Result.map2 xor (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
 
 {-| Interprets the values in the dictonary as a binary number and increases it by 1 until all digits are 1.

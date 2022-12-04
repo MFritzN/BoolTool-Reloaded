@@ -350,7 +350,7 @@ evaluateTestHelp : Dict String Bool -> Formula -> Basics.Bool -> Test
 evaluateTestHelp variables formula expected =
     test (formulaVariblesToString variables formula) <|
         \_ ->
-            evaluate formula variables
+            evaluateUnsafe formula variables
                 |> Expect.equal expected
                 |> Expect.onFail
                     ("Expected this to be "

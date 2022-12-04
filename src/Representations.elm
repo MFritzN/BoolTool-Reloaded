@@ -22,10 +22,10 @@ type alias Model =
 
 
 initModel : String -> Model
-initModel _ =
-    { formulaInput = ""
+initModel urlString =
+    { formulaInput = urlString
     , list = []
-    , formulaInputParsed = run formula_p ""
+    , formulaInputParsed = run formula_p urlString
     }
 
 
@@ -370,7 +370,7 @@ calculateTruthTable formula =
         variables =
             Dict.fromList (List.map (\variable -> ( variable, Basics.False )) (Set.toList (getVariables formula)))
     in
-    { vars = Dict.keys variables, results = ( Dict.values variables, evaluate formula variables ) :: calculateTruthTableHelp formula variables }
+    { vars = Dict.keys variables, results = ( Dict.values variables, evaluateUnsafe formula variables ) :: calculateTruthTableHelp formula variables }
 
 
 calculateTruthTableHelp : Formula -> Dict String Basics.Bool -> List ( List Basics.Bool, Basics.Bool )
@@ -380,7 +380,7 @@ calculateTruthTableHelp formula variables =
             []
 
         Just newVariables ->
-            ( Dict.values newVariables, evaluate formula newVariables ) :: calculateTruthTableHelp formula newVariables
+            ( Dict.values newVariables, evaluateUnsafe formula newVariables ) :: calculateTruthTableHelp formula newVariables
 
 
 
