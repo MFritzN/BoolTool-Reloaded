@@ -221,3 +221,89 @@ iterateVariablesHelp changedVariables unchangedVariables =
 
         Basics.True :: unchangedVariablesTail ->
             iterateVariablesHelp (changedVariables ++ [ Basics.False ]) unchangedVariablesTail
+
+
+simplify : Formula -> Formula
+simplify formula =
+    case formula of
+        True ->
+            True
+
+        False ->
+            False
+
+        Var string ->
+            Var string
+
+        And form1 form2 ->
+            case ( simplify form1, simplify form2 ) of
+                ( True, x ) ->
+                    x
+
+                ( x, True ) ->
+                    x
+
+                ( False, _ ) ->
+                    False
+
+                ( _, False ) ->
+                    False
+
+                ( x, y ) ->
+                    And x y
+
+        Xor form1 form2 ->
+            case ( simplify form1, simplify form2 ) of
+                ( True, True ) ->
+                    False
+
+                ( False, x ) ->
+                    x
+
+                ( x, False ) ->
+                    x
+
+                ( x, y ) ->
+                    Xor x y
+
+        Or form1 form2 ->
+            case ( simplify form1, simplify form2 ) of
+                ( True, _ ) ->
+                    True
+
+                ( _, True ) ->
+                    True
+
+                ( False, x ) ->
+                    x
+
+                ( x, False ) ->
+                    x
+
+                ( x, y ) ->
+                    Or x y
+
+        Impl form1 form2 ->
+            case ( simplify form1, simplify form2 ) of
+                ( False, _ ) ->
+                    True
+
+                ( True, x ) ->
+                    x
+
+                ( x, False ) ->
+                    x
+
+                ( x, y ) ->
+                    Impl x y
+
+        Neg form1 ->
+            case simplify form1 of
+                True ->
+                    False
+
+                False ->
+                    True
+
+                x ->
+                    Neg x

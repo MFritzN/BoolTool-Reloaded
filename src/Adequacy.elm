@@ -11,6 +11,7 @@ import Maybe
 import Parser exposing (DeadEnd, run, variable)
 import Representations
 import Set
+import ANF
 
 
 
@@ -357,7 +358,7 @@ existsIsNotAffine formula =
 
 isNotAffine : Formula -> Basics.Bool
 isNotAffine formula =
-    Representations.calculateANF formula
+    ANF.calculateANF formula
         |> List.map List.length
         |> List.maximum
         |> Maybe.andThen (\x -> Just (x > 1))

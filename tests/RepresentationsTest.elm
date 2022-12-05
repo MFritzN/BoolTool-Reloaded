@@ -2,8 +2,9 @@ module RepresentationsTest exposing (..)
 
 import BoolImpl exposing (..)
 import Expect
-import Representations exposing (calculateANF, listToANF)
 import Test exposing (Test, describe, test)
+import ANF exposing (calculateANF)
+import ANF exposing (listToANF)
 
 
 anfTestSuite : Test
