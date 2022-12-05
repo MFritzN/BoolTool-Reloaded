@@ -398,32 +398,33 @@ renderNNF formula =
         , text (toString nnf)
         ]
 
-
-implFree : Formula -> Formula
-implFree formula =
+{-| Replaces Implications (Impl) and Exclusive Ors (Xor) by equal statements using And, Or and Neg.
+This is needed as a preprocessing step for `calculateNNF`.
+-}
+replaceImplXor : Formula -> Formula
+replaceImplXor formula =
     case formula of
         Neg a ->
-            Neg (implFree a)
+            Neg (replaceImplXor a)
 
         And a b ->
-            And (implFree a) (implFree b)
+            And (replaceImplXor a) (replaceImplXor b)
 
         Or a b ->
-            Or (implFree a) (implFree b)
+            Or (replaceImplXor a) (replaceImplXor b)
 
         Impl a b ->
-            Or (Neg (implFree a)) (implFree b)
+            Or (Neg (replaceImplXor a)) (replaceImplXor b)
 
         Xor a b ->
-            implFree (Or (And a b) (And (Neg a) (Neg b)))
+            replaceImplXor (Or (And a (Neg b)) (And (Neg a) b))
 
         a ->
             a
 
-
 calculateNNF : Formula -> Formula
 calculateNNF formula =
-    case implFree formula of
+    case replaceImplXor formula of
         Neg (Neg a) ->
             calculateNNF a
 
