@@ -5,7 +5,7 @@ import Dict exposing (..)
 import Html exposing (Html, button, div, input, span, table, td, text, th, tr)
 import Html.Attributes exposing (..)
 import Html.Events exposing (keyCode, on, onClick, onInput)
-import Json.Decode as Json
+import Json.Decode as Json exposing (string)
 import List.Extra
 import Maybe
 import Parser exposing (DeadEnd, run, variable)
@@ -21,13 +21,15 @@ type alias Model =
     { functionInput : String
     , list : List BoolImpl.Formula
     , functionInputParsed : Result (List DeadEnd) Formula
+    , stringList : String
     }
 
 
 initModel : String -> Model
-initModel _ =
-    { functionInput = ""
-    , list = []
+initModel string =
+    { stringList = string
+    , functionInput = ""
+    , list = Result.withDefault [] (Result.map (\stringFormula -> run formula_p stringFormula) (stringToList string))
     , functionInputParsed = run formula_p ""
     }
 
@@ -219,6 +221,32 @@ onEnter msg =
                 Json.fail "not ENTER"
     in
     on "keydown" (Json.andThen isEnter keyCode)
+
+
+functionSetToString : List Formula -> String
+functionSetToString list =
+    List.foldl (\formula string -> string ++ ", " ++ toString formula) "[" list
+        |> String.dropRight 2
+        |> String.append "]"
+
+
+stringToList : String -> Result String (List String)
+stringToList string =
+    (if String.startsWith "[" string then
+        Ok string
+
+     else
+        Err "An Array has to start with '['"
+    )
+        |> Result.andThen
+            (\str ->
+                if String.endsWith "]" str then
+                    Ok string
+
+                else
+                    Err "An Array has to start with ']'"
+            )
+        |> Result.map (\str -> String.split "," str)
 
 
 

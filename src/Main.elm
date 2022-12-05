@@ -8,7 +8,7 @@ import Html exposing (a, div, h3, nav, text)
 import Html.Attributes exposing (..)
 import Representations
 import Url
-import Url.Parser exposing ((<?>), Parser, oneOf, parse, s)
+import Url.Parser exposing ((</>), Parser, fragment, oneOf, parse, s)
 import Url.Parser.Query as Query
 
 
@@ -102,8 +102,8 @@ resultOk result =
 routeParser : Parser (PrimitiveRoute -> a) a
 routeParser =
     oneOf
-        [ Url.Parser.map PrimitiveAdequacy (s "adequacy" <?> Query.string "q")
-        , Url.Parser.map PrimitiveRepresentation (s "representation" <?> Query.string "q")
+        [ Url.Parser.map PrimitiveAdequacy (s "adequacy" </> fragment identity)
+        , Url.Parser.map PrimitiveRepresentation (s "representation" </> fragment identity)
         ]
 
 
