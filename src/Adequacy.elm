@@ -30,7 +30,7 @@ initModel : String -> Model
 initModel string =
     { stringList = string
     , functionInput = ""
-    , list = Result.withDefault [] (Result.map (\stringFormula -> run formula_p stringFormula) (stringToList string))
+    , list = [] --Result.withDefault [] (Result.map (\stringFormula -> run formula_p stringFormula) (stringToList string))
     , functionInputParsed = run formula_p ""
     }
 
