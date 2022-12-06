@@ -25,6 +25,28 @@ type Formula
     | Var String
 
 
+precedence : Formula -> Int
+precedence operator =
+    case operator of
+        And _ _ ->
+            3
+
+        Impl _ _ ->
+            1
+
+        Xor _ _ ->
+            2
+
+        Or _ _ ->
+            3
+
+        Neg _ ->
+            4
+
+        _ ->
+            5
+
+
 equals : Formula -> Formula -> Bool
 equals form1 form2 =
     case ( form1, form2 ) of
@@ -78,14 +100,14 @@ boolExpression =
             [ typeVarHelp
             , constant (keyword "true") True
             , constant (keyword "false") False
-            , prefix 3 (symbol "~") Neg
+            , prefix (precedence (Neg True)) (symbol "¬") Neg
             , parenthesizedExpression
             ]
         , andThenOneOf =
-            [ infixRight 2 (symbol "&") And
-            , infixRight 2 (symbol "|") Or
-            , infixRight 2 (symbol "^") Xor
-            , infixRight 1 (symbol "->") Impl
+            [ infixRight (precedence (And True True)) (symbol "∧") And
+            , infixRight (precedence (Or True True)) (symbol "∨") Or
+            , infixRight (precedence (Xor True True)) (symbol "⊕") Xor
+            , infixRight (precedence (Impl True True)) (symbol "→") Impl
             ]
         , spaces = Parser.spaces
         }
@@ -110,28 +132,97 @@ toString : Formula -> String
 toString formula =
     case formula of
         True ->
-            "T"
+            "True"
 
         False ->
-            "F"
+            "False"
 
         Var v ->
             v
 
         And l_form r_form ->
-            "(" ++ toString l_form ++ "&" ++ toString r_form ++ ")"
+            (if precedence (And l_form r_form) >= precedence l_form then
+                "(" ++ toString l_form ++ ")"
+
+             else
+                toString l_form
+            )
+                ++ " ∧ "
+                ++ (if precedence (And l_form r_form) > precedence r_form then
+                        "(" ++ toString r_form ++ ")"
+
+                    else
+                        toString r_form
+                   )
 
         Or l_form r_form ->
-            "(" ++ toString l_form ++ "|" ++ toString r_form ++ ")"
+            (if precedence (Or l_form r_form) >= precedence l_form then
+                "(" ++ toString l_form ++ ")"
+
+             else
+                toString l_form
+            )
+                ++ " ∨ "
+                ++ (if precedence (Or l_form r_form) > precedence r_form then
+                        "(" ++ toString r_form ++ ")"
+
+                    else
+                        toString r_form
+                   )
 
         Neg r_form ->
-            "(" ++ "~" ++ toString r_form ++ ")"
+            if precedence (Neg r_form) > precedence r_form then
+                "(" ++ "¬" ++ toString r_form ++ ")"
+
+            else
+                "¬" ++ toString r_form
 
         Impl l_form r_form ->
-            "(" ++ toString l_form ++ "->" ++ toString r_form ++ ")"
+            (if precedence (Impl l_form r_form) >= precedence l_form then
+                "(" ++ toString l_form ++ ")"
+
+             else
+                toString l_form
+            )
+                ++ " → "
+                ++ (if precedence (Impl l_form r_form) > precedence r_form then
+                        "(" ++ toString r_form ++ ")"
+
+                    else
+                        toString r_form
+                   )
 
         Xor l_form r_form ->
-            "(" ++ toString l_form ++ "^" ++ toString r_form ++ ")"
+            (if precedence (Xor l_form r_form) >= precedence l_form then
+                "(" ++ toString l_form ++ ")"
+
+             else
+                toString l_form
+            )
+                ++ " ⊕ "
+                ++ (if precedence (Xor l_form r_form) > precedence r_form then
+                        "(" ++ toString r_form ++ ")"
+
+                    else
+                        toString r_form
+                   )
+
+
+preprocessString : String -> String
+preprocessString string =
+    string
+        |> String.replace "\\wedge" "∧"
+        |> String.replace "&" "∧"
+        |> String.replace "\\vee" "∨"
+        |> String.replace "|" "∨"
+        |> String.replace "~" "¬"
+        |> String.replace "\\neg" "¬"
+        |> String.replace "!" "¬"
+        |> String.replace "^" "⊕"
+        |> String.replace "->" "→"
+        |> String.replace "\\to" "→"
+        |> String.replace "\\rightarrow" "→"
+        |> String.replace "\\implies" "→"
 
 
 getVariables : Formula -> Set String

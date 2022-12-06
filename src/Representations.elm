@@ -1,5 +1,6 @@
 module Representations exposing (..)
 
+import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Dict exposing (Dict)
 import Html exposing (Html, div, h4, input, p, table, td, text, th, tr)
@@ -30,9 +31,9 @@ type alias Model =
 
 initModel : String -> Model
 initModel urlString =
-    { formulaInput = urlString
+    { formulaInput = preprocessString urlString
     , list = []
-    , formulaInputParsed = run formula_p urlString
+    , formulaInputParsed = run formula_p (preprocessString urlString)
     }
 
 
@@ -48,7 +49,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         InputChanged newInput ->
-            ( { model | formulaInput = newInput, formulaInputParsed = run formula_p newInput }, Cmd.none )
+            ( { model | formulaInput = preprocessString newInput, formulaInputParsed = run formula_p (preprocessString newInput) }, Cmd.none )
 
 
 
@@ -117,6 +118,8 @@ renderANF formula =
         [ h4 [] [ text "ANF" ]
         , text (toString (listToANF anf))
         ]
+
+
 
 -- TruthTable
 -- View
@@ -191,6 +194,55 @@ renderNNF formula =
         [ h4 [] [ text "NNF" ]
         , text (toString nnf)
         ]
+
+
+{-| Replaces Implications (Impl) and Exclusive Ors (Xor) by equal statements using And, Or and Neg.
+This is needed as a preprocessing step for `calculateNNF`.
+-}
+replaceImplXor : Formula -> Formula
+replaceImplXor formula =
+    case formula of
+        Neg a ->
+            Neg (replaceImplXor a)
+
+        And a b ->
+            And (replaceImplXor a) (replaceImplXor b)
+
+        Or a b ->
+            Or (replaceImplXor a) (replaceImplXor b)
+
+        Impl a b ->
+            Or (Neg (replaceImplXor a)) (replaceImplXor b)
+
+        Xor a b ->
+            replaceImplXor (Or (And a (Neg b)) (And (Neg a) b))
+
+        a ->
+            a
+
+
+calculateNNF : Formula -> Formula
+calculateNNF formula =
+    case replaceImplXor formula of
+        Neg (Neg a) ->
+            calculateNNF a
+
+        Neg (And a b) ->
+            Or (calculateNNF (Neg a)) (calculateNNF (Neg b))
+
+        Neg (Or a b) ->
+            And (calculateNNF (Neg a)) (calculateNNF (Neg b))
+
+        And a b ->
+            And (calculateNNF a) (calculateNNF b)
+
+        Or a b ->
+            Or (calculateNNF a) (calculateNNF b)
+
+        a ->
+            a
+
+
 
 -- CNF
 
