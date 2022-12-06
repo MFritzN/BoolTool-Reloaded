@@ -140,35 +140,11 @@ toString formula =
         Var v ->
             v
 
-        And l_form r_form ->
-            (if precedence (And l_form r_form) >= precedence l_form then
-                "(" ++ toString l_form ++ ")"
+        And lForm rForm ->
+            toStringHelp "∧" (Xor lForm rForm) lForm rForm
 
-             else
-                toString l_form
-            )
-                ++ " ∧ "
-                ++ (if precedence (And l_form r_form) > precedence r_form then
-                        "(" ++ toString r_form ++ ")"
-
-                    else
-                        toString r_form
-                   )
-
-        Or l_form r_form ->
-            (if precedence (Or l_form r_form) >= precedence l_form then
-                "(" ++ toString l_form ++ ")"
-
-             else
-                toString l_form
-            )
-                ++ " ∨ "
-                ++ (if precedence (Or l_form r_form) > precedence r_form then
-                        "(" ++ toString r_form ++ ")"
-
-                    else
-                        toString r_form
-                   )
+        Or lForm rForm ->
+            toStringHelp "∨" (Xor lForm rForm) lForm rForm
 
         Neg r_form ->
             if precedence (Neg r_form) > precedence r_form then
@@ -177,37 +153,37 @@ toString formula =
             else
                 "¬" ++ toString r_form
 
-        Impl l_form r_form ->
-            (if precedence (Impl l_form r_form) >= precedence l_form then
-                "(" ++ toString l_form ++ ")"
+        Impl lForm rForm ->
+            toStringHelp "→" (Xor lForm rForm) lForm rForm
 
-             else
-                toString l_form
-            )
-                ++ " → "
-                ++ (if precedence (Impl l_form r_form) > precedence r_form then
-                        "(" ++ toString r_form ++ ")"
-
-                    else
-                        toString r_form
-                   )
-
-        Xor l_form r_form ->
-            (if precedence (Xor l_form r_form) >= precedence l_form then
-                "(" ++ toString l_form ++ ")"
-
-             else
-                toString l_form
-            )
-                ++ " ⊕ "
-                ++ (if precedence (Xor l_form r_form) > precedence r_form then
-                        "(" ++ toString r_form ++ ")"
-
-                    else
-                        toString r_form
-                   )
+        Xor lForm rForm ->
+            toStringHelp "⊕" (Xor lForm rForm) lForm rForm
 
 
+toStringHelp : String -> Formula -> Formula -> Formula -> String
+toStringHelp symbol formula lForm rForm =
+    (if precedence formula >= precedence lForm then
+        "(" ++ toString lForm ++ ")"
+
+     else
+        toString lForm
+    )
+        ++ " "
+        ++ symbol
+        ++ " "
+        ++ (if precedence formula > precedence rForm then
+                "(" ++ toString rForm ++ ")"
+
+            else
+                toString rForm
+           )
+
+
+{-| Replaces some input symbols and latex equivalents with their correpsonding Unicode charackters.
+
+    preprocessString "a & b \wedge c" == "a ∧ b ∧ c"
+
+-}
 preprocessString : String -> String
 preprocessString string =
     string

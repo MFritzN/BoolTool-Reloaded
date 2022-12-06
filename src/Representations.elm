@@ -6,16 +6,10 @@ import Dict exposing (Dict)
 import Html exposing (Html, div, h4, input, p, table, td, text, th, tr)
 import Html.Attributes exposing (class, placeholder, value)
 import Html.Events exposing (onInput)
+import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
 import Parser exposing (DeadEnd, run)
 import Result.Extra
 import Set
-import ANF exposing (calculateANF, listToANF)
-import NormalForms exposing (calculateCNF)
-import NormalForms exposing (distrCNF)
-import NormalForms exposing (calculateDNF)
-import NormalForms exposing (distrDNF)
-import NormalForms exposing (replaceImplXor)
-import NormalForms exposing (calculateNNF)
 
 
 
@@ -80,11 +74,11 @@ view model =
         , div []
             (case model.formulaInputParsed of
                 Ok formula ->
-                    [ renderTruthTable formula
-                    , renderNormalForm "ANF" formula (\f -> listToANF (calculateANF f))
+                    [ renderNormalForm "ANF" formula (\f -> listToANF (calculateANF f))
                     , renderNormalForm "NNF" formula calculateNNF
                     , renderNormalForm "CNF" formula calculateCNF
                     , renderNormalForm "DNF" formula calculateDNF
+                    , renderTruthTable formula
                     ]
 
                 _ ->
@@ -95,6 +89,7 @@ view model =
 
 
 -- ANF - Represented as a List of Lists of Strings whereas Strings represent Variables, a inner list conjunctions and the outer list Disjunctions
+
 
 renderNormalForm : String -> Formula -> (Formula -> Formula) -> Html Msg
 renderNormalForm title formula calculateNormalForm =
@@ -258,7 +253,11 @@ renderCNF formula =
         , text (toString cnf)
         ]
 
+
+
 -- DNF
+
+
 renderDNF : Formula -> Html Msg
 renderDNF formula =
     let

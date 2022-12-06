@@ -18,7 +18,7 @@ parserSuite =
                         expectedFormula =
                             And (Var "a") (And (Var "b") (Var "c"))
                     in
-                    case run BoolImpl.formula_p "a & b & c" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a & b & c") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -32,7 +32,7 @@ parserSuite =
                         expectedFormula =
                             Or (Var "a") (Or (Var "b") (Var "c"))
                     in
-                    case run BoolImpl.formula_p "a | b | c" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a | b | c") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -46,7 +46,7 @@ parserSuite =
                         expectedFormula =
                             Xor (Var "a") (Xor (Var "b") (Var "c"))
                     in
-                    case run BoolImpl.formula_p "a ^ b ^ c" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a ^ b ^ c") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -60,7 +60,7 @@ parserSuite =
                         expectedFormula =
                             Impl (Var "a") (Impl (Var "b") (Var "c"))
                     in
-                    case run BoolImpl.formula_p "a -> b -> c" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a -> b -> c") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -76,7 +76,7 @@ parserSuite =
                         expectedFormula =
                             And (Neg (Var "a")) (Var "b")
                     in
-                    case run BoolImpl.formula_p "~a & b" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "~a & b") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -90,7 +90,7 @@ parserSuite =
                         expectedFormula =
                             And (Var "a") (Neg (Var "b"))
                     in
-                    case run BoolImpl.formula_p "a & ~b" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a & ~b") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -104,7 +104,7 @@ parserSuite =
                         expectedFormula =
                             Or (Neg (Var "a")) (Var "b")
                     in
-                    case run BoolImpl.formula_p "~a | b" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "~a | b") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -118,7 +118,7 @@ parserSuite =
                         expectedFormula =
                             Or (Var "a") (Neg (Var "b"))
                     in
-                    case run BoolImpl.formula_p "a | ~b" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a | ~b") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -132,7 +132,7 @@ parserSuite =
                         expectedFormula =
                             Xor (Neg (Var "a")) (Var "b")
                     in
-                    case run BoolImpl.formula_p "~a ^ b" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "~a ^ b") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -146,7 +146,7 @@ parserSuite =
                         expectedFormula =
                             Xor (Var "a") (Neg (Var "b"))
                     in
-                    case run BoolImpl.formula_p "a ^ ~b" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a ^ ~b") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -160,7 +160,7 @@ parserSuite =
                         expectedFormula =
                             Impl (Neg (Var "a")) (Var "b")
                     in
-                    case run BoolImpl.formula_p "~a -> b" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "~a -> b") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -174,7 +174,7 @@ parserSuite =
                         expectedFormula =
                             Impl (Var "a") (Neg (Var "b"))
                     in
-                    case run BoolImpl.formula_p "a -> ~b" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a -> ~b") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -188,7 +188,7 @@ parserSuite =
                         expectedFormula =
                             Impl (And (Var "a") (Var "b")) (Var "c")
                     in
-                    case run BoolImpl.formula_p "a & b -> c" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a & b -> c") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -202,7 +202,7 @@ parserSuite =
                         expectedFormula =
                             Impl (Var "a") (And (Var "b") (Var "c"))
                     in
-                    case run BoolImpl.formula_p "a -> b & c" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a -> b & c") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -216,7 +216,7 @@ parserSuite =
                         expectedFormula =
                             Impl (Or (Var "a") (Var "b")) (Var "c")
                     in
-                    case run BoolImpl.formula_p "a | b -> c" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a | b -> c") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -230,7 +230,7 @@ parserSuite =
                         expectedFormula =
                             Impl (Var "a") (Or (Var "b") (Var "c"))
                     in
-                    case run BoolImpl.formula_p "a -> b | c" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a -> b | c") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -244,7 +244,7 @@ parserSuite =
                         expectedFormula =
                             Impl (Xor (Var "a") (Var "b")) (Var "c")
                     in
-                    case run BoolImpl.formula_p "a ^ b -> c" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a ^ b -> c") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
@@ -258,7 +258,7 @@ parserSuite =
                         expectedFormula =
                             Impl (Var "a") (Xor (Var "b") (Var "c"))
                     in
-                    case run BoolImpl.formula_p "a -> b ^ c" of
+                    case run BoolImpl.formula_p (BoolImpl.preprocessString "a -> b ^ c") of
                         Ok formula ->
                             equals formula expectedFormula
                                 |> Expect.equal Basics.True
