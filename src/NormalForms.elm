@@ -1,9 +1,10 @@
 module NormalForms exposing (..)
 
-{-| This module contains the implementations for calculating NNFs, CNFs and DNFs. The ANF computation happens in the  [`ANF`](ANF) module.
+{-| This module contains the implementations for calculating NNFs, CNFs and DNFs. The ANF computation happens in the [`ANF`](ANF) module.
 -}
 
 import BoolImpl exposing (..)
+
 
 calculateCNF : Formula -> Formula
 calculateCNF formula =
@@ -17,6 +18,7 @@ calculateCNF formula =
         a ->
             a
 
+
 distrCNF : Formula -> Formula -> Formula
 distrCNF formula1 formula2 =
     case ( formula1, formula2 ) of
@@ -28,6 +30,7 @@ distrCNF formula1 formula2 =
 
         ( a, b ) ->
             Or a b
+
 
 calculateDNF : Formula -> Formula
 calculateDNF formula =
@@ -41,6 +44,7 @@ calculateDNF formula =
         a ->
             a
 
+
 distrDNF : Formula -> Formula -> Formula
 distrDNF formula1 formula2 =
     case ( formula1, formula2 ) of
@@ -48,10 +52,11 @@ distrDNF formula1 formula2 =
             Or (distrDNF formula11 formula2) (distrDNF formula12 formula2)
 
         ( _, Or formula21 formula22 ) ->
-            And (distrDNF formula1 formula21) (distrDNF formula1 formula22)
+            Or (distrDNF formula1 formula21) (distrDNF formula1 formula22)
 
         ( a, b ) ->
             And a b
+
 
 {-| Replaces Implications (Impl) and Exclusive Ors (Xor) by equal statements using And, Or and Neg.
 This is needed as a preprocessing step for `calculateNNF`.
@@ -76,6 +81,7 @@ replaceImplXor formula =
 
         a ->
             a
+
 
 calculateNNF : Formula -> Formula
 calculateNNF formula =
