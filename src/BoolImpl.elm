@@ -141,10 +141,10 @@ toString formula =
             v
 
         And lForm rForm ->
-            toStringHelp "∧" (Xor lForm rForm) lForm rForm
+            toStringHelp "∧" (And lForm rForm) lForm rForm
 
         Or lForm rForm ->
-            toStringHelp "∨" (Xor lForm rForm) lForm rForm
+            toStringHelp "∨" (Or lForm rForm) lForm rForm
 
         Neg r_form ->
             if precedence (Neg r_form) > precedence r_form then
@@ -154,7 +154,7 @@ toString formula =
                 "¬" ++ toString r_form
 
         Impl lForm rForm ->
-            toStringHelp "→" (Xor lForm rForm) lForm rForm
+            toStringHelp "→" (Impl lForm rForm) lForm rForm
 
         Xor lForm rForm ->
             toStringHelp "⊕" (Xor lForm rForm) lForm rForm
