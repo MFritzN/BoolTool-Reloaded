@@ -9,9 +9,11 @@ import Html.Attributes exposing (class, placeholder, value)
 import Html.Events exposing (onInput)
 import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
 import Parser exposing (DeadEnd, run)
+import Properties exposing (FormulaProperties, calculateProperties, calculateTruthTable)
 import Result.Extra
 import Set
 import Url exposing (Url)
+import ViewHelpers exposing (boolToSymbol)
 
 
 
@@ -90,7 +92,8 @@ view model =
         , div []
             (case model.formulaInputParsed of
                 Ok formula ->
-                    [ renderNormalForm "ANF" formula (\f -> listToANF (calculateANF f))
+                    [ renderProperties formula
+                    , renderNormalForm "ANF" formula (\f -> listToANF (calculateANF f))
                     , renderNormalForm "NNF" formula calculateNNF
                     , renderNormalForm "CNF" formula calculateCNF
                     , renderNormalForm "DNF" formula calculateDNF
@@ -100,6 +103,31 @@ view model =
                 _ ->
                     []
             )
+        ]
+
+
+renderProperties : Formula -> Html Msg
+renderProperties formula =
+    let
+        properties =
+            calculateProperties formula
+    in
+    div [ class "box content" ]
+        [ h4 [] [ text "Properties" ]
+        , table []
+            [ tr []
+                [ td [] [ text "Tautology" ]
+                , td [] [ text (boolToSymbol properties.tautology) ]
+                ]
+            , tr []
+                [ td [] [ text "Satisfiable" ]
+                , td [] [ text (boolToSymbol properties.satisfiable) ]
+                ]
+            , tr []
+                [ td [] [ text "Contradiction" ]
+                , td [] [ text (boolToSymbol properties.contradiction) ]
+                ]
+            ]
         ]
 
 
@@ -157,36 +185,6 @@ prettyPrintBool bool =
 
     else
         text "False"
-
-
-{-| Inner representation of a Truth Table. `vars` defines the order of the results. `results` is a tuple which first contains the input values sorted according to `vars` and secondly the corresponding result for those input variables.
--}
-type alias TruthTable =
-    { vars : List String
-    , results : List ( List Basics.Bool, Basics.Bool )
-    }
-
-
-{-| Calculates the Truthtable of a given formula in the variable order for the given variables.
-The return value is a
--}
-calculateTruthTable : Formula -> TruthTable
-calculateTruthTable formula =
-    let
-        variables =
-            Dict.fromList (List.map (\variable -> ( variable, Basics.False )) (Set.toList (getVariables formula)))
-    in
-    { vars = Dict.keys variables, results = ( Dict.values variables, evaluateUnsafe formula variables ) :: calculateTruthTableHelp formula variables }
-
-
-calculateTruthTableHelp : Formula -> Dict String Basics.Bool -> List ( List Basics.Bool, Basics.Bool )
-calculateTruthTableHelp formula variables =
-    case iterateVariables variables of
-        Nothing ->
-            []
-
-        Just newVariables ->
-            ( Dict.values newVariables, evaluateUnsafe formula newVariables ) :: calculateTruthTableHelp formula newVariables
 
 
 

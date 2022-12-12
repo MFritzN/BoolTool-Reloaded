@@ -4,7 +4,7 @@ import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Expect
 import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF)
-import Representations exposing (calculateTruthTable)
+import Properties exposing (calculateTruthTable)
 import Test exposing (Test, describe, test)
 
 
