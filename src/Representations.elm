@@ -2,6 +2,7 @@ module Representations exposing (..)
 
 import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
+import Browser.Navigation exposing (Key, replaceUrl)
 import Dict exposing (Dict)
 import Html exposing (Html, div, h4, input, p, table, td, text, th, tr)
 import Html.Attributes exposing (class, placeholder, value)
@@ -10,6 +11,7 @@ import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceIm
 import Parser exposing (DeadEnd, run)
 import Result.Extra
 import Set
+import Url exposing (Url)
 
 
 
@@ -20,14 +22,18 @@ type alias Model =
     { formulaInput : String
     , list : List BoolImpl.Formula
     , formulaInputParsed : Result (List DeadEnd) Formula
+    , key : Key
+    , url : Url
     }
 
 
-initModel : String -> Model
-initModel urlString =
+initModel : String -> Key -> Url -> Model
+initModel urlString key url =
     { formulaInput = preprocessString urlString
     , list = []
     , formulaInputParsed = run formula_p (preprocessString urlString)
+    , key = key
+    , url = url
     }
 
 
@@ -43,7 +49,17 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         InputChanged newInput ->
-            ( { model | formulaInput = preprocessString newInput, formulaInputParsed = run formula_p (preprocessString newInput) }, Cmd.none )
+            let
+                preprocessedInput =
+                    preprocessString newInput
+
+                oldUrl =
+                    model.url
+
+                newUrl =
+                    { oldUrl | fragment = Just (reversePreprocessString preprocessedInput) }
+            in
+            ( { model | formulaInput = preprocessedInput, formulaInputParsed = run formula_p preprocessedInput, url = newUrl }, replaceUrl model.key (Url.toString newUrl) )
 
 
 

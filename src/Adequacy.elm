@@ -1,6 +1,8 @@
 module Adequacy exposing (..)
 
+import ANF
 import BoolImpl exposing (..)
+import Browser.Navigation exposing (Key)
 import Dict exposing (..)
 import Html exposing (Html, button, div, input, span, table, td, text, th, tr)
 import Html.Attributes exposing (..)
@@ -11,7 +13,7 @@ import Maybe
 import Parser exposing (DeadEnd, run, variable)
 import Representations
 import Set
-import ANF
+import Url exposing (Url)
 
 
 
@@ -23,15 +25,19 @@ type alias Model =
     , list : List BoolImpl.Formula
     , functionInputParsed : Result (List DeadEnd) Formula
     , stringList : String
+    , key : Key
+    , url : Url
     }
 
 
-initModel : String -> Model
-initModel string =
+initModel : String -> Key -> Url -> Model
+initModel string key url =
     { stringList = string
     , functionInput = ""
     , list = [] --Result.withDefault [] (Result.map (\stringFormula -> run formula_p stringFormula) (stringToList string))
     , functionInputParsed = run formula_p ""
+    , key = key
+    , url = url
     }
 
 

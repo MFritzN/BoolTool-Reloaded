@@ -199,6 +199,18 @@ preprocessString string =
         |> String.replace "\\to" "→"
         |> String.replace "\\rightarrow" "→"
         |> String.replace "\\implies" "→"
+        |> String.replace "\\oplus" "⊕"
+
+
+reversePreprocessString : String -> String
+reversePreprocessString string =
+    string
+        |> String.filter (\c -> c /= ' ')
+        |> String.replace "∧" "\\wedge"
+        |> String.replace "∨" "\\vee"
+        |> String.replace "¬" "\\neg"
+        |> String.replace "⊕" "\\oplus"
+        |> String.replace "→" "\\implies"
 
 
 getVariables : Formula -> Set String

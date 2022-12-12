@@ -34,48 +34,59 @@ main =
 
 type alias Model =
     { url : Url.Url
-    , key : Nav.Key
-    , route : Maybe Route
+    , route : Route
     }
 
 
 type Route
     = Adequacy String Adequacy.Model
     | Representation String Representations.Model
+    | NotFound Nav.Key
 
 
 type PrimitiveRoute
     = PrimitiveAdequacy (Maybe String)
     | PrimitiveRepresentation (Maybe String)
+    | PrimitiveHome
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init _ url key =
+    let
+        routeTuple =
+            getRoute url key
+    in
     ( { url = url
-      , key = key
-      , route = getRoute url
+      , route = Tuple.first routeTuple
       }
-    , Cmd.none
+    , Tuple.second routeTuple
     )
 
 
-getRoute : Url.Url -> Maybe Route
-getRoute url =
+getRoute : Url.Url -> Nav.Key -> ( Route, Cmd Msg )
+getRoute url key =
     case parse routeParser url of
         Just (PrimitiveRepresentation Nothing) ->
-            Just (Representation "" (Representations.initModel ""))
+            ( Representation "" (Representations.initModel "" key url), Cmd.none )
 
         Just (PrimitiveRepresentation (Just a)) ->
-            Just (Representation a (Representations.initModel a))
+            ( Representation a (Representations.initModel a key url), Cmd.none )
 
         Just (PrimitiveAdequacy Nothing) ->
-            Just (Adequacy "" (Adequacy.initModel ""))
+            ( Adequacy "" (Adequacy.initModel "" key url), Cmd.none )
 
         Just (PrimitiveAdequacy (Just a)) ->
-            Just (Adequacy a (Adequacy.initModel a))
+            ( Adequacy a (Adequacy.initModel a key url), Cmd.none )
+
+        Just PrimitiveHome ->
+            let
+                newUrl =
+                    { url | path = "/representations" }
+            in
+            ( Representation "" (Representations.initModel "" key newUrl), Nav.replaceUrl key (Url.toString newUrl) )
 
         _ ->
-            Nothing
+            ( NotFound key, Cmd.none )
 
 
 
@@ -104,17 +115,30 @@ routeParser =
     oneOf
         [ Url.Parser.map PrimitiveAdequacy (s "adequacy" </> fragment identity)
         , Url.Parser.map PrimitiveRepresentation (s "representation" </> fragment identity)
+        , Url.Parser.map PrimitiveHome (s "")
         ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        key =
+            case model.route of
+                Adequacy _ aModel ->
+                    aModel.key
+
+                Representation _ rModel ->
+                    rModel.key
+
+                NotFound k ->
+                    k
+    in
     case ( msg, model.route ) of
         ( LinkClicked urlRequest, _ ) ->
             case urlRequest of
                 Browser.Internal url ->
-                    ( { model | route = getRoute url }
-                    , Nav.pushUrl model.key (Url.toString url)
+                    ( { model | route = Tuple.first (getRoute url key) }
+                    , Nav.pushUrl key (Url.toString url)
                     )
 
                 Browser.External href ->
@@ -125,11 +149,11 @@ update msg model =
             , Cmd.none
             )
 
-        ( AdequacyMsg aMsg, Just (Adequacy _ aModel) ) ->
-            ( { model | route = Just (Adequacy "" (Tuple.first (Adequacy.update aMsg aModel))) }, Cmd.map (\m -> AdequacyMsg m) (Tuple.second (Adequacy.update aMsg aModel)) )
+        ( AdequacyMsg aMsg, Adequacy _ aModel ) ->
+            ( { model | route = Adequacy "" (Tuple.first (Adequacy.update aMsg aModel)) }, Cmd.map (\m -> AdequacyMsg m) (Tuple.second (Adequacy.update aMsg aModel)) )
 
-        ( RepresentationMsg rMsg, Just (Representation _ rModel) ) ->
-            ( { model | route = Just (Representation "" (Tuple.first (Representations.update rMsg rModel))) }, Cmd.map (\m -> RepresentationMsg m) (Tuple.second (Representations.update rMsg rModel)) )
+        ( RepresentationMsg rMsg, Representation _ rModel ) ->
+            ( { model | route = Representation "" (Tuple.first (Representations.update rMsg rModel)) }, Cmd.map (\m -> RepresentationMsg m) (Tuple.second (Representations.update rMsg rModel)) )
 
         ( _, _ ) ->
             -- Ignore messages that come from a non active view
@@ -171,13 +195,13 @@ view model =
                 ]
             ]
         , case model.route of
-            Just (Adequacy _ aModel) ->
+            Adequacy _ aModel ->
                 Html.map (\a -> AdequacyMsg a) (Adequacy.view aModel)
 
-            Just (Representation _ rModel) ->
+            Representation _ rModel ->
                 Html.map (\r -> RepresentationMsg r) (Representations.view rModel)
 
-            Nothing ->
+            NotFound _ ->
                 text "404"
         ]
     }
