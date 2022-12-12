@@ -87,10 +87,6 @@ view model =
         ]
 
 
-
--- ANF - Represented as a List of Lists of Strings whereas Strings represent Variables, a inner list conjunctions and the outer list Disjunctions
-
-
 renderNormalForm : String -> Formula -> (Formula -> Formula) -> Html Msg
 renderNormalForm title formula calculateNormalForm =
     let
@@ -100,6 +96,8 @@ renderNormalForm title formula calculateNormalForm =
     div [ class "box content" ]
         [ h4 [] [ text title ]
         , text (toString normalForm)
+
+        --, p [] [ text (Debug.toString normalForm) ]
         ]
 
 
