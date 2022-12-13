@@ -11,7 +11,6 @@ import Json.Decode as Json exposing (string)
 import List.Extra
 import Maybe
 import Parser exposing (DeadEnd, run, variable)
-import Representations
 import Set
 import Url exposing (Url)
 
@@ -20,11 +19,17 @@ import Url exposing (Url)
 -- Model
 
 
+type InputError
+    = ParserFailed Int (List DeadEnd)
+    | FoundDuplicateInString Formula
+    | MissingOpeningBracket
+    | MissingClosingBracket
+
+
 type alias Model =
-    { functionInput : String
+    { setInput : String
     , list : List BoolImpl.Formula
-    , functionInputParsed : Result (List DeadEnd) Formula
-    , stringList : String
+    , setInputParsed : Result InputError (List Formula)
     , key : Key
     , url : Url
     }
@@ -32,13 +37,36 @@ type alias Model =
 
 initModel : String -> Key -> Url -> Model
 initModel string key url =
-    { stringList = string
-    , functionInput = ""
-    , list = [] --Result.withDefault [] (Result.map (\stringFormula -> run formula_p stringFormula) (stringToList string))
-    , functionInputParsed = run formula_p ""
+    { setInput = preprocessString string
+    , list = []
+    , setInputParsed = parseInputSet (preprocessString string)
     , key = key
     , url = url
     }
+
+
+parseInputSet : String -> Result InputError (List Formula)
+parseInputSet input =
+    stringToList input
+        |> Result.map (List.map (\stringFormula -> run formula_p stringFormula))
+        |> Result.andThen (parseInputSetHelp [] 0)
+
+
+parseInputSetHelp : List Formula -> Int -> List (Result (List DeadEnd) Formula) -> Result InputError (List Formula)
+parseInputSetHelp returnList counter inputList =
+    case inputList of
+        [] ->
+            Ok returnList
+
+        (Err a) :: _ ->
+            Err (ParserFailed counter a)
+
+        (Ok a) :: tail ->
+            if List.any (equals a) returnList then
+                Err (FoundDuplicateInString a)
+
+            else
+                parseInputSetHelp (returnList ++ [ a ]) (counter + 1) tail
 
 
 
@@ -55,16 +83,22 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         InputChanged newInput ->
-            ( { model | functionInput = newInput, functionInputParsed = run formula_p newInput }, Cmd.none )
+            ( { model | setInput = preprocessString newInput, setInputParsed = parseInputSet (preprocessString newInput) }, Cmd.none )
 
         AddToSet ->
-            case model.functionInputParsed of
-                Ok result ->
-                    if List.any (\el -> BoolImpl.equals el result) model.list then
-                        ( { model | list = model.list }, Cmd.none )
+            case model.setInputParsed of
+                Ok inputList ->
+                    let
+                        oldUrl =
+                            model.url
 
-                    else
-                        ( { model | list = result :: model.list, functionInput = "" }, Cmd.none )
+                        newSet =
+                            model.list ++ List.filter (\inputFormula -> not (List.any (equals inputFormula) model.list)) inputList
+
+                        newUrl =
+                            { oldUrl | fragment = Just (reversePreprocessString (functionSetToString newSet)) }
+                    in
+                    ( { model | list = newSet, setInput = "", setInputParsed = parseInputSet "", url = newUrl }, Browser.Navigation.replaceUrl model.key (Url.toString newUrl) )
 
                 Err _ ->
                     ( { model | list = model.list }, Cmd.none )
@@ -201,11 +235,11 @@ view : Model -> Html Msg
 view model =
     div []
         [ div [ onEnter AddToSet, class "box" ]
-            [ input [ placeholder "Function Input", value model.functionInput, onInput InputChanged, class "input" ] []
+            [ input [ placeholder "Function Input", value model.setInput, onInput InputChanged, class "input" ] []
             , text
-                (case model.functionInputParsed of
-                    Ok formula ->
-                        toString formula
+                (case model.setInputParsed of
+                    Ok list ->
+                        functionSetToString list
 
                     Err x ->
                         Debug.toString x
@@ -232,28 +266,40 @@ onEnter msg =
 
 functionSetToString : List Formula -> String
 functionSetToString list =
-    List.foldl (\formula string -> string ++ ", " ++ toString formula) "[" list
-        |> String.dropRight 2
-        |> String.append "]"
+    List.foldl (\formula string -> string ++ ", " ++ toString formula) "" list
+        |> String.dropLeft 2
+        |> (\a ->
+                "["
+                    ++ a
+                    ++ "]"
+           )
 
 
-stringToList : String -> Result String (List String)
+stringToList : String -> Result InputError (List String)
 stringToList string =
-    (if String.startsWith "[" string then
-        Ok string
+    let
+        startsWithBracket =
+            String.startsWith "[" string
 
-     else
-        Err "An Array has to start with '['"
-    )
-        |> Result.andThen
-            (\str ->
-                if String.endsWith "]" str then
-                    Ok string
+        endsWithBracket =
+            String.endsWith "]" string
+    in
+    case ( startsWithBracket, endsWithBracket ) of
+        ( Basics.True, Basics.True ) ->
+            string
+                |> String.dropLeft 1
+                |> String.dropRight 1
+                |> String.split ","
+                |> Ok
 
-                else
-                    Err "An Array has to start with ']'"
-            )
-        |> Result.map (\str -> String.split "," str)
+        ( Basics.False, Basics.True ) ->
+            Err MissingOpeningBracket
+
+        ( Basics.True, Basics.False ) ->
+            Err MissingClosingBracket
+
+        ( Basics.False, Basics.False ) ->
+            Ok [ string ]
 
 
 
