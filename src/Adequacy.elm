@@ -13,6 +13,7 @@ import Maybe
 import Parser exposing (DeadEnd, run, variable)
 import Set
 import Url exposing (Url)
+import ViewHelpers exposing (boolToSymbol)
 
 
 
@@ -22,8 +23,6 @@ import Url exposing (Url)
 type InputError
     = ParserFailed Int (List DeadEnd)
     | FoundDuplicateInString Formula
-    | MissingOpeningBracket
-    | MissingClosingBracket
 
 
 type alias Model =
@@ -47,9 +46,10 @@ initModel string key url =
 
 parseInputSet : String -> Result InputError (List Formula)
 parseInputSet input =
-    stringToList input
-        |> Result.map (List.map (\stringFormula -> run formula_p stringFormula))
-        |> Result.andThen (parseInputSetHelp [] 0)
+    input
+        |> String.split ","
+        |> List.map (\stringFormula -> run formula_p stringFormula)
+        |> parseInputSetHelp [] 0
 
 
 parseInputSetHelp : List Formula -> Int -> List (Result (List DeadEnd) Formula) -> Result InputError (List Formula)
@@ -138,94 +138,34 @@ renderPostConditions list =
                         tr []
                             [ td [] [ text (toString formula) ]
                             , td []
-                                [ if allInputNotEqInput formula Basics.False then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
+                                [ text (boolToSymbol (allInputNotEqInput formula Basics.False)) ]
                             , td []
-                                [ if allInputNotEqInput formula Basics.True then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
+                                [ text (boolToSymbol (allInputNotEqInput formula Basics.True)) ]
                             , td []
-                                [ if isNotMontone formula then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
+                                [ text (boolToSymbol (isNotMontone formula)) ]
                             , td []
-                                [ if isNotSelfDual formula then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
+                                [ text (boolToSymbol (isNotSelfDual formula)) ]
                             , td []
-                                [ if isNotAffine formula then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
+                                [ text (boolToSymbol (isNotAffine formula)) ]
                             , td []
-                                [ if isAdequat [ formula ] then
-                                    text "✓"
-
-                                  else
-                                    text "✕"
-                                ]
+                                [ text (boolToSymbol (isAdequat [ formula ])) ]
                             ]
                     )
                     list
                 ++ [ tr [ class "is-selected" ]
                         [ td [] [ text "exists" ]
                         , td []
-                            [ if existsAllInputNotEqInput list Basics.False then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
+                            [ text (boolToSymbol (existsAllInputNotEqInput list Basics.False)) ]
                         , td []
-                            [ if existsAllInputNotEqInput list Basics.True then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
+                            [ text (boolToSymbol (existsAllInputNotEqInput list Basics.True)) ]
                         , td []
-                            [ if exsistsIsNotMonotone list then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
+                            [ text (boolToSymbol (exsistsIsNotMonotone list)) ]
                         , td []
-                            [ if exsistsIsNotSelfDual list then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
+                            [ text (boolToSymbol (exsistsIsNotSelfDual list)) ]
                         , td []
-                            [ if existsIsNotAffine list then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
+                            [ text (boolToSymbol (existsIsNotAffine list)) ]
                         , td []
-                            [ if isAdequat list then
-                                text "✓"
-
-                              else
-                                text "✕"
-                            ]
+                            [ text (boolToSymbol (isAdequat list)) ]
                         ]
                    ]
             )
@@ -268,38 +208,6 @@ functionSetToString : List Formula -> String
 functionSetToString list =
     List.foldl (\formula string -> string ++ ", " ++ toString formula) "" list
         |> String.dropLeft 2
-        |> (\a ->
-                "["
-                    ++ a
-                    ++ "]"
-           )
-
-
-stringToList : String -> Result InputError (List String)
-stringToList string =
-    let
-        startsWithBracket =
-            String.startsWith "[" string
-
-        endsWithBracket =
-            String.endsWith "]" string
-    in
-    case ( startsWithBracket, endsWithBracket ) of
-        ( Basics.True, Basics.True ) ->
-            string
-                |> String.dropLeft 1
-                |> String.dropRight 1
-                |> String.split ","
-                |> Ok
-
-        ( Basics.False, Basics.True ) ->
-            Err MissingOpeningBracket
-
-        ( Basics.True, Basics.False ) ->
-            Err MissingClosingBracket
-
-        ( Basics.False, Basics.False ) ->
-            Ok [ string ]
 
 
 
