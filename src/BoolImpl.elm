@@ -98,8 +98,10 @@ boolExpression =
     Pratt.expression
         { oneOf =
             [ typeVarHelp
-            , constant (keyword "true") True
-            , constant (keyword "false") False
+            , constant (keyword "True") True
+            , constant (keyword "False") False
+            , constant (symbol "⊤") True
+            , constant (symbol "⊥") False
             , prefix (precedence (Neg True)) (symbol "¬") Neg
             , parenthesizedExpression
             ]
@@ -132,10 +134,10 @@ toString : Formula -> String
 toString formula =
     case formula of
         True ->
-            "True"
+            "⊤"
 
         False ->
-            "False"
+            "⊥"
 
         Var v ->
             v
@@ -200,6 +202,8 @@ preprocessString string =
         |> String.replace "\\rightarrow" "→"
         |> String.replace "\\implies" "→"
         |> String.replace "\\oplus" "⊕"
+        |> String.replace "\\top" "⊤"
+        |> String.replace "\\bottom" "⊥"
 
 
 reversePreprocessString : String -> String
@@ -211,6 +215,8 @@ reversePreprocessString string =
         |> String.replace "¬" "\\neg"
         |> String.replace "⊕" "\\oplus"
         |> String.replace "→" "\\implies"
+        |> String.replace "⊤" "\\top"
+        |> String.replace "⊥" "\\bottom"
 
 
 getVariables : Formula -> Set String

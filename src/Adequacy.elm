@@ -126,17 +126,17 @@ renderPostConditions list =
         table [ class "table is-narrow box" ]
             (tr []
                 [ th [] [ text "Function" ]
-                , th [] [ text "∃f ∈ X such that f (0,...,0) ≠ 0: " ]
-                , th [] [ text "∃f ∈ X such that f (1,...,1) ≠ 1: " ]
-                , th [] [ text "∃f ∈ X which is not monotone:" ]
-                , th [] [ text "∃f ∈ X which is not self-dual:" ]
-                , th [] [ text "∃f ∈ X which is not affine:" ]
+                , th [] [ text "f (0,...,0) ≠ 0: " ]
+                , th [] [ text "f (1,...,1) ≠ 1: " ]
+                , th [] [ text "not monotone:" ]
+                , th [] [ text "not self-dual:" ]
+                , th [] [ text "not affine:" ]
                 , th [] [ text "adequat" ]
                 ]
-                :: List.map
-                    (\formula ->
+                :: List.indexedMap
+                    (\index formula ->
                         tr []
-                            [ td [] [ text (toString formula) ]
+                            [ td [] [ span [ class "tag" ] [ text (BoolImpl.toString formula), button [ onClick (RemoveFromSet index), class "delete" ] [] ] ]
                             , td []
                                 [ text (boolToSymbol (allInputNotEqInput formula Basics.False)) ]
                             , td []
@@ -153,7 +153,7 @@ renderPostConditions list =
                     )
                     list
                 ++ [ tr [ class "is-selected" ]
-                        [ td [] [ text "exists" ]
+                        [ td [] [ span [ class "tag" ] [ text "exists" ] ]
                         , td []
                             [ text (boolToSymbol (existsAllInputNotEqInput list Basics.False)) ]
                         , td []
@@ -186,7 +186,8 @@ view model =
                 )
             , button [ onClick AddToSet, class "button" ] [ text "Add to Set" ]
             ]
-        , renderFunctionSet model.list
+
+        --, renderFunctionSet model.list
         , renderPostConditions model.list
         ]
 
