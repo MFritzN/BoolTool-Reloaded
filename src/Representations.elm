@@ -73,14 +73,16 @@ view model =
     div []
         [ div [ class "field" ]
             [ input
-                ((if Result.Extra.isOk model.formulaInputParsed then
+                [ if Result.Extra.isOk model.formulaInputParsed then
                     class "is-success"
 
                   else
-                    class "is-danger"
-                 )
-                    :: [ placeholder "Formula Input", value model.formulaInput, onInput InputChanged, class "input" ]
-                )
+                    class "is-dangerp"
+                , placeholder "Formula Input"
+                , value model.formulaInput
+                , onInput InputChanged
+                , class "input avoid-cursor-jump"
+                ]
                 []
             , case model.formulaInputParsed of
                 Ok formula ->
@@ -181,10 +183,10 @@ renderTruthTable formula =
 prettyPrintBool : Basics.Bool -> Html Msg
 prettyPrintBool bool =
     if bool then
-        text "True"
+        text "T"
 
     else
-        text "False"
+        text "F"
 
 
 

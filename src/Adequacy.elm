@@ -175,7 +175,7 @@ view : Model -> Html Msg
 view model =
     div []
         [ div [ onEnter AddToSet, class "box" ]
-            [ input [ placeholder "Function Input", value model.setInput, onInput InputChanged, class "input" ] []
+            [ input [ placeholder "Function Input", value model.setInput, onInput InputChanged, class "input avoid-cursor-jump" ] []
             , text
                 (case model.setInputParsed of
                     Ok list ->
