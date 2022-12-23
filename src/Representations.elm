@@ -4,12 +4,17 @@ import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
 import Dict exposing (Dict)
-import Html exposing (Html, div, h4, input, p, table, td, text, th, tr)
+import Html exposing (Html, div, form, h4, input, p, table, td, text, th, tr)
 import Html.Attributes exposing (class, placeholder, value)
 import Html.Events exposing (onInput)
 import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
+import OBDD exposing (computeBDD, computeGraph)
 import Parser exposing (DeadEnd, run)
 import Properties exposing (FormulaProperties, calculateProperties, calculateTruthTable)
+import Render as R
+import Render.StandardDrawers as RSD
+import Render.StandardDrawers.Attributes as RSDA
+import Render.StandardDrawers.Types exposing (Shape(..))
 import Result.Extra
 import Set
 import Url exposing (Url)
@@ -100,6 +105,7 @@ view model =
                     , renderNormalForm "CNF" formula calculateCNF
                     , renderNormalForm "DNF" formula calculateDNF
                     , renderTruthTable formula
+                    , renderOBDD formula
                     ]
 
                 _ ->
@@ -156,6 +162,43 @@ renderANF formula =
     div [ class "box content" ]
         [ h4 [] [ text "ANF" ]
         , text (toString (listToANF anf))
+        ]
+
+
+renderOBDD : Formula -> Html Msg
+renderOBDD formula =
+    div [ class "box content" ]
+        [ h4 [] [ text "OBDD" ]
+        , R.draw
+            []
+            [ R.nodeDrawer
+                (RSD.svgDrawNode
+                    [ RSDA.label (\a -> a.label)
+                    , RSDA.shape
+                        (\a ->
+                            if a.id <= 1 then
+                                Box
+
+                            else
+                                Circle
+                        )
+                    ]
+                )
+            , R.edgeDrawer
+                (RSD.svgDrawEdge
+                    [ RSDA.strokeDashArray
+                        (\a ->
+                            if a.label then
+                                "0"
+
+                            else
+                                "2.5"
+                        )
+                    ]
+                )
+            , R.style "height: 100vh;"
+            ]
+            (computeGraph (computeBDD formula (Set.toList (getVariables formula))))
         ]
 
 
