@@ -4,9 +4,11 @@ import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
 import Dict exposing (Dict)
-import Html exposing (Html, div, form, h4, input, p, table, td, text, th, tr)
-import Html.Attributes exposing (class, placeholder, value)
-import Html.Events exposing (onInput)
+import Html exposing (Html, a, button, div, form, h4, i, input, p, span, table, td, text, th, tr)
+import Html.Attributes exposing (class, placeholder, style, value)
+import Html.Events exposing (onClick, onInput)
+import List.Extra
+import Maybe exposing (withDefault)
 import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
 import OBDD exposing (computeBDD, computeGraph, computeOBDD, removeRedundantTests)
 import Parser exposing (DeadEnd, run)
@@ -31,17 +33,34 @@ type alias Model =
     , formulaInputParsed : Result (List DeadEnd) Formula
     , key : Key
     , url : Url
+    , variableOrder : List String
     }
 
 
 initModel : String -> Key -> Url -> Model
 initModel urlString key url =
-    { formulaInput = preprocessString urlString
+    let
+        formulaInput =
+            preprocessString urlString
+
+        formulaInputParsed =
+            run formula_p formulaInput
+    in
+    { formulaInput = formulaInput
     , list = []
-    , formulaInputParsed = run formula_p (preprocessString urlString)
+    , formulaInputParsed = formulaInputParsed
     , key = key
     , url = url
+    , variableOrder = getVariableOrder formulaInputParsed
     }
+
+
+getVariableOrder : Result (List DeadEnd) Formula -> List String
+getVariableOrder formulaInputParsed =
+    formulaInputParsed
+        |> Result.map getVariables
+        |> Result.withDefault Set.empty
+        |> Set.toList
 
 
 
@@ -50,6 +69,12 @@ initModel urlString key url =
 
 type Msg
     = InputChanged String
+    | VariableOrderChanged Int MoveTo
+
+
+type MoveTo
+    = Front
+    | Back
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -60,13 +85,49 @@ update msg model =
                 preprocessedInput =
                     preprocessString newInput
 
+                formulaInputParsed =
+                    run formula_p preprocessedInput
+
                 oldUrl =
                     model.url
 
                 newUrl =
                     { oldUrl | fragment = Just (reversePreprocessString preprocessedInput) }
             in
-            ( { model | formulaInput = preprocessedInput, formulaInputParsed = run formula_p preprocessedInput, url = newUrl }, replaceUrl model.key (Url.toString newUrl) )
+            ( { model | formulaInput = preprocessedInput, formulaInputParsed = formulaInputParsed, url = newUrl, variableOrder = getVariableOrder formulaInputParsed }, replaceUrl model.key (Url.toString newUrl) )
+
+        VariableOrderChanged index direction ->
+            let
+                varibaleToMove =
+                    List.Extra.getAt index model.variableOrder
+
+                maybeVariableOrder =
+                    List.map Just model.variableOrder
+            in
+            ( { model
+                | variableOrder =
+                    (case direction of
+                        Front ->
+                            List.Extra.updateAt index (\_ -> List.Extra.getAt (index + 1) model.variableOrder) maybeVariableOrder
+                                |> List.Extra.updateAt (index + 1) (\_ -> varibaleToMove)
+                                |> List.filterMap identity
+
+                        Back ->
+                            List.Extra.updateAt index (\_ -> List.Extra.getAt (index - 1) model.variableOrder) maybeVariableOrder
+                                |> List.Extra.updateAt (index - 1) (\_ -> varibaleToMove)
+                                |> List.filterMap identity
+                    )
+                        |> (\result ->
+                                if List.length result /= List.length model.variableOrder then
+                                    -- If some List.Extra calls were out of reach, the old list is kept. This code should not be reachable.
+                                    model.variableOrder
+
+                                else
+                                    result
+                           )
+              }
+            , Cmd.none
+            )
 
 
 
@@ -105,7 +166,7 @@ view model =
                     , renderNormalForm "CNF" formula calculateCNF
                     , renderNormalForm "DNF" formula calculateDNF
                     , renderTruthTable formula
-                    , renderOBDD formula
+                    , renderOBDD formula model.variableOrder
                     ]
 
                 _ ->
@@ -165,10 +226,23 @@ renderANF formula =
         ]
 
 
-renderOBDD : Formula -> Html Msg
-renderOBDD formula =
+renderOBDD : Formula -> List String -> Html Msg
+renderOBDD formula variableOrder =
     div [ class "box content" ]
         [ h4 [] [ text "OBDD" ]
+        , div [ class "field is-grouped is-grouped-multiline" ]
+            (List.indexedMap
+                (\index variable ->
+                    div [ class "control" ]
+                        [ div [ class "tags has-addons" ]
+                            [ span [ class "tag icon", style "cursor" "pointer", onClick (VariableOrderChanged index Back) ] [ i [ class "fas fa-solid fa-caret-left" ] [] ]
+                            , span [ class "tag" ] [ text variable ]
+                            , span [ class "tag icon", style "cursor" "pointer", onClick (VariableOrderChanged index Front) ] [ i [ class "fas fa-solid fa-caret-right" ] [] ]
+                            ]
+                        ]
+                )
+                variableOrder
+            )
         , R.draw
             []
             [ R.nodeDrawer
@@ -196,9 +270,9 @@ renderOBDD formula =
                         )
                     ]
                 )
-            , R.style "height: 100vh;"
+            , R.style "height: 50vh;"
             ]
-            (computeOBDD formula (Set.toList (getVariables formula)))
+            (computeOBDD formula variableOrder)
         ]
 
 
@@ -215,7 +289,7 @@ renderTruthTable formula =
     in
     div [ class "content box" ]
         [ h4 [] [ text "Truth Table" ]
-        , table [ class "table is-narrow is-striped is-bordered" ]
+        , table [ class "table is-narrow is-striped is-hoverable is-bordered" ]
             (tr [] (List.map (\variable -> th [] [ text variable ]) truthTable.vars ++ [ th [] [ text "Result" ] ])
                 :: List.map (\row -> tr [] (List.map (\value -> td [] [ prettyPrintBool value ]) (Tuple.first row) ++ [ td [] [ prettyPrintBool (Tuple.second row) ] ]))
                     truthTable.results
