@@ -8,7 +8,7 @@ import Html exposing (Html, div, form, h4, input, p, table, td, text, th, tr)
 import Html.Attributes exposing (class, placeholder, value)
 import Html.Events exposing (onInput)
 import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
-import OBDD exposing (computeBDD, computeGraph)
+import OBDD exposing (computeBDD, computeGraph, computeOBDD, removeRedundantTests)
 import Parser exposing (DeadEnd, run)
 import Properties exposing (FormulaProperties, calculateProperties, calculateTruthTable)
 import Render as R
@@ -198,7 +198,7 @@ renderOBDD formula =
                 )
             , R.style "height: 100vh;"
             ]
-            (computeGraph (computeBDD formula (Set.toList (getVariables formula))))
+            (computeOBDD formula (Set.toList (getVariables formula)))
         ]
 
 
