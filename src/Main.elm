@@ -8,8 +8,7 @@ import Html exposing (a, div, h3, nav, text)
 import Html.Attributes exposing (..)
 import Representations
 import Url
-import Url.Parser exposing ((</>), Parser, fragment, oneOf, parse, s)
-import Url.Parser.Query as Query
+import Url.Parser exposing ((</>), Parser, fragment, oneOf, parse, s, top)
 
 
 
@@ -113,9 +112,9 @@ resultOk result =
 routeParser : Parser (PrimitiveRoute -> a) a
 routeParser =
     oneOf
-        [ Url.Parser.map PrimitiveAdequacy (s "adequacy" </> fragment identity)
-        , Url.Parser.map PrimitiveRepresentation (s "representation" </> fragment identity)
-        , Url.Parser.map PrimitiveHome (s "")
+        [ Url.Parser.map PrimitiveHome top
+        , Url.Parser.map PrimitiveAdequacy (s "adequacy" </> fragment identity)
+        , Url.Parser.map PrimitiveRepresentation (s "representations" </> fragment identity)
         ]
 
 
@@ -185,7 +184,7 @@ view model =
                 ]
             , div [ class "navbar-menu is-active" ]
                 [ div [ class "navbar-start" ]
-                    [ a [ class "navbar-item", href "/representation" ]
+                    [ a [ class "navbar-item", href "/representations" ]
                         [ text "Representations"
                         ]
                     , a [ class "navbar-item", href "/adequacy" ]
