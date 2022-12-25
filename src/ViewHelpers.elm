@@ -8,3 +8,13 @@ boolToSymbol bool =
 
     else
         "✕"
+
+
+maybeToSymbol : Maybe a -> String
+maybeToSymbol maybe =
+    case maybe of
+        Just _ ->
+            "✓"
+
+        Nothing ->
+            "✕"

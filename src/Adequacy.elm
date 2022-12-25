@@ -13,7 +13,7 @@ import Maybe
 import Parser exposing (DeadEnd, run, variable)
 import Set
 import Url exposing (Url)
-import ViewHelpers exposing (boolToSymbol)
+import ViewHelpers exposing (boolToSymbol, maybeToSymbol)
 
 
 
@@ -144,7 +144,13 @@ renderPostConditions list =
                             , td []
                                 [ text (boolToSymbol (isNotMontone formula)) ]
                             , td []
-                                [ text (boolToSymbol (isNotSelfDual formula)) ]
+                                [ case isNotSelfDual formula of
+                                    Just foundFormula ->
+                                        span [ style "data-tooltip" (varsToString foundFormula) ] [ text "✓" ]
+
+                                    Nothing ->
+                                        text "✕"
+                                ]
                             , td []
                                 [ text (boolToSymbol (isNotAffine formula)) ]
                             , td []
@@ -278,10 +284,19 @@ isNotMonotoneHelp formula variables remainingVariables =
 
 exsistsIsNotSelfDual : List Formula -> Basics.Bool
 exsistsIsNotSelfDual list =
-    List.any isNotSelfDual list
+    List.any
+        (\formula ->
+            case isNotSelfDual formula of
+                Nothing ->
+                    Basics.False
+
+                Just _ ->
+                    Basics.True
+        )
+        list
 
 
-isNotSelfDual : Formula -> Basics.Bool
+isNotSelfDual : Formula -> Maybe (Dict String Bool)
 isNotSelfDual formula =
     let
         variables =
@@ -290,19 +305,19 @@ isNotSelfDual formula =
     isNotSelfDualHelp formula variables
 
 
-isNotSelfDualHelp : Formula -> Dict String Bool -> Bool
+isNotSelfDualHelp : Formula -> Dict String Bool -> Maybe (Dict String Bool)
 isNotSelfDualHelp formula variables =
     let
         inverse_variables =
             Dict.map (\_ v -> not v) variables
     in
     if evaluateUnsafe formula variables == evaluateUnsafe formula inverse_variables then
-        Basics.True
+        Just variables
 
     else
         case iterateVariables variables of
             Nothing ->
-                Basics.False
+                Nothing
 
             Just newVariables ->
                 isNotSelfDualHelp formula newVariables

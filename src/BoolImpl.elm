@@ -392,3 +392,25 @@ simplify formula =
 
                 x ->
                     Neg x
+
+
+varsToString : Dict String Basics.Bool -> String
+varsToString vars =
+    let
+        stringVars =
+            String.dropRight 2
+                (List.foldl
+                    (\value string ->
+                        string
+                            ++ (if value then
+                                    "1, "
+
+                                else
+                                    "2, "
+                               )
+                    )
+                    ""
+                    (Dict.values vars)
+                )
+    in
+    "f ( " ++ stringVars ++ " )"
