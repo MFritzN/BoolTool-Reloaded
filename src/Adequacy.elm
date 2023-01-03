@@ -142,17 +142,17 @@ renderPostConditions list =
                             , td []
                                 [ text (boolToSymbol (allInputNotEqInput formula Basics.True)) ]
                             , td []
-                                [ text (boolToSymbol (isNotMontone formula)) ]
+                                [ renderMonotone formula ]
                             , td []
                                 [ case isNotSelfDual formula of
                                     Just foundFormula ->
-                                        span [ style "data-tooltip" (varsToString foundFormula) ] [ text "✓" ]
+                                        span [ attribute "data-tooltip" (notSelfDualTooltip foundFormula) ] [ text "✓" ]
 
                                     Nothing ->
                                         text "✕"
                                 ]
                             , td []
-                                [ text (boolToSymbol (isNotAffine formula)) ]
+                                [ span [ attribute "data-tooltip" ("ANF: " ++ (toString <| ANF.listToANF <| ANF.calculateANF formula)) ] [ text (boolToSymbol (isNotAffine formula)) ] ]
                             , td []
                                 [ text (boolToSymbol (isAdequat [ formula ])) ]
                             ]
@@ -198,6 +198,16 @@ view model =
         ]
 
 
+renderMonotone : Formula -> Html msg
+renderMonotone formula =
+    case isNotMontone formula of
+        Nothing ->
+            text <| boolToSymbol Basics.False
+
+        Just vars ->
+            span [ attribute "data-tooltip" ((String.dropRight 2 <| List.foldl (\var str -> str ++ var ++ ", ") "f (" vars) ++ ") = x̄") ] [ text <| boolToSymbol Basics.True ]
+
+
 onEnter : Msg -> Html.Attribute Msg
 onEnter msg =
     let
@@ -209,6 +219,11 @@ onEnter msg =
                 Json.fail "not ENTER"
     in
     on "keydown" (Json.andThen isEnter keyCode)
+
+
+notSelfDualTooltip : Dict String Bool -> String
+notSelfDualTooltip vars =
+    varsToString vars ++ " = " ++ varsToString (Dict.map (\_ v -> not v) vars)
 
 
 functionSetToString : List Formula -> String
@@ -247,10 +262,19 @@ allInputNotEqInput formula x =
 
 exsistsIsNotMonotone : List Formula -> Basics.Bool
 exsistsIsNotMonotone list =
-    List.any isNotMontone list
+    List.any
+        (\el ->
+            case isNotMontone el of
+                Just _ ->
+                    Basics.True
+
+                Nothing ->
+                    Basics.False
+        )
+        list
 
 
-isNotMontone : Formula -> Basics.Bool
+isNotMontone : Formula -> Maybe (List String)
 isNotMontone formula =
     let
         variables =
@@ -259,20 +283,27 @@ isNotMontone formula =
     isNotMonotoneHelp formula variables (Dict.keys variables)
 
 
-isNotMonotoneHelp : Formula -> Dict String Bool -> List String -> Bool
+isNotMonotoneHelp : Formula -> Dict String Bool -> List String -> Maybe (List String)
 isNotMonotoneHelp formula variables remainingVariables =
     case remainingVariables of
         [] ->
-            case iterateVariables variables of
-                Nothing ->
-                    Basics.False
-
-                Just newVariables ->
-                    isNotMonotoneHelp formula newVariables (Dict.keys newVariables)
+            iterateVariables variables
+                |> Maybe.andThen (\newVariables -> isNotMonotoneHelp formula newVariables (Dict.keys newVariables))
 
         currentVar :: remainingVariablesTail ->
             if not (BoolImpl.evaluateUnsafe formula (Dict.insert currentVar Basics.True variables)) && BoolImpl.evaluateUnsafe formula (Dict.insert currentVar Basics.False variables) then
-                Basics.True
+                variables
+                    |> Dict.map
+                        (\_ v ->
+                            if v then
+                                "1"
+
+                            else
+                                "0"
+                        )
+                    |> Dict.insert currentVar "x"
+                    |> Dict.values
+                    |> Just
 
             else
                 isNotMonotoneHelp formula variables remainingVariablesTail
