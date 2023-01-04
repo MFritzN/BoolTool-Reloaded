@@ -6,7 +6,7 @@ import Expect
 import Graph as G
 import IntDict
 import List.Extra
-import OBDD exposing (computeOBDD, getContexts)
+import OBDD exposing (computeOBDD)
 import Set
 import Test exposing (Test, describe, test)
 import TestHelp exposing (testFormulas)
@@ -122,3 +122,10 @@ allVariableCombinationsHelp variablesList currentTry remainingVars originalVars 
 
                     Err result ->
                         allVariableCombinationsHelp result (var :: currentTry) vars originalVars
+
+
+getContexts : G.Graph String Basics.Bool -> List (G.NodeContext String Basics.Bool)
+getContexts graph =
+    G.nodes graph
+        |> List.map (\a -> G.get a.id graph)
+        |> List.filterMap identity

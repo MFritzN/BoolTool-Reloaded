@@ -28,29 +28,20 @@ computeBDDHelp formula variables values =
 computeOBDD : Formula -> List String -> G.Graph String Basics.Bool
 computeOBDD formula list =
     let
-        falseNode =
-            G.Node 0 "0"
-
-        trueNode =
-            G.Node 1 "1"
-
-        bdd =
-            computeBDD formula list
-
         result =
-            computeOBDDHelp bdd Dict.empty
+            computeOBDDHelp (computeBDD formula list) Dict.empty
     in
-    G.fromNodesAndEdges (falseNode :: (trueNode :: result.nodes)) result.edges
+    G.fromNodesAndEdges result.nodes result.edges
 
 
 computeOBDDHelp : BDD -> Dict ( String, Int, Int ) Int -> { myId : Int, idManagment : Dict ( String, Int, Int ) Int, nodes : List (G.Node String), edges : List (G.Edge Basics.Bool) }
 computeOBDDHelp bdd idManagment =
     case bdd of
         ValueLeaf Basics.True ->
-            { myId = 1, idManagment = idManagment, nodes = [], edges = [] }
+            { myId = 1, idManagment = idManagment, nodes = [ G.Node 1 "1" ], edges = [] }
 
         ValueLeaf Basics.False ->
-            { myId = 0, idManagment = idManagment, nodes = [], edges = [] }
+            { myId = 0, idManagment = idManagment, nodes = [ G.Node 0 "0" ], edges = [] }
 
         VariableNode variable hi lo ->
             let
