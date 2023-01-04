@@ -3,10 +3,10 @@ module ANF exposing (..)
 import BoolImpl exposing (..)
 import Set exposing (toList)
 
+
 {-| Implementation of the ANF calculation.
 ANFs are represented as a List of Lists of Strings whereas Strings represent Variables, a inner list conjunctions and the outer list Disjunctions.
 -}
-
 calculateANF : Formula -> List (List String)
 calculateANF formula =
     case formula of
@@ -48,13 +48,15 @@ calculateANF formula =
                 |> polishANF
 
         Impl x y ->
-            calculateANF (And (Neg x) y)
+            calculateANF (Or (Neg x) y)
+
 
 polishANF : List (List String) -> List (List String)
 polishANF list =
     List.map (\conjunction -> Set.toList (Set.fromList conjunction)) list
         |> sortANFList
         |> removeDuplicatesFromANF
+
 
 removeDuplicatesFromANF : List (List String) -> List (List String)
 removeDuplicatesFromANF anf =
@@ -69,6 +71,7 @@ removeDuplicatesFromANF anf =
         _ ->
             anf
 
+
 listToANF : List (List String) -> Formula
 listToANF list =
     case list of
@@ -80,6 +83,7 @@ listToANF list =
 
         x :: xs ->
             Xor (listToConjunction x) (listToANF xs)
+
 
 listToConjunction : List String -> Formula
 listToConjunction list =
@@ -114,6 +118,7 @@ listToConjunction list =
                         )
                         (listToConjunction xs)
 
+
 splitANFAndHelp : Formula -> List String
 splitANFAndHelp formula =
     case formula of
@@ -131,6 +136,7 @@ splitANFAndHelp formula =
 
         _ ->
             []
+
 
 sortANFList : List (List String) -> List (List String)
 sortANFList list =
