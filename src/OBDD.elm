@@ -3,8 +3,6 @@ module OBDD exposing (..)
 import BoolImpl exposing (Formula, evaluateUnsafe)
 import Dict exposing (Dict)
 import Graph as G
-import IntDict
-import List.Extra
 
 
 type BDD
@@ -27,8 +25,8 @@ computeBDDHelp formula variables values =
             VariableNode variable (computeBDDHelp formula variableTail (Dict.insert variable Basics.True values)) (computeBDDHelp formula variableTail (Dict.insert variable Basics.False values))
 
 
-computeGraph : BDD -> G.Graph String Basics.Bool
-computeGraph bdd =
+computeOBDD : Formula -> List String -> G.Graph String Basics.Bool
+computeOBDD formula list =
     let
         falseNode =
             G.Node 0 "0"
@@ -36,152 +34,46 @@ computeGraph bdd =
         trueNode =
             G.Node 1 "1"
 
+        bdd =
+            computeBDD formula list
+
         result =
-            computeGraphHelp bdd 2
+            computeOBDDHelp bdd Dict.empty
     in
     G.fromNodesAndEdges (falseNode :: (trueNode :: result.nodes)) result.edges
 
 
-computeGraphHelp : BDD -> Int -> { myId : Int, nextFreeId : Int, nodes : List (G.Node String), edges : List (G.Edge Basics.Bool) }
-computeGraphHelp bdd nextFreeID =
+computeOBDDHelp : BDD -> Dict ( String, Int, Int ) Int -> { myId : Int, idManagment : Dict ( String, Int, Int ) Int, nodes : List (G.Node String), edges : List (G.Edge Basics.Bool) }
+computeOBDDHelp bdd idManagment =
     case bdd of
         ValueLeaf Basics.True ->
-            { myId = 1, nextFreeId = nextFreeID, nodes = [], edges = [] }
+            { myId = 1, idManagment = idManagment, nodes = [], edges = [] }
 
         ValueLeaf Basics.False ->
-            { myId = 0, nextFreeId = nextFreeID, nodes = [], edges = [] }
+            { myId = 0, idManagment = idManagment, nodes = [], edges = [] }
 
-        VariableNode variable trueBDD falseBDD ->
+        VariableNode variable hi lo ->
             let
-                trueBddResult =
-                    computeGraphHelp trueBDD nextFreeID
+                hiResult =
+                    computeOBDDHelp hi idManagment
 
-                falseBddResult =
-                    computeGraphHelp falseBDD trueBddResult.nextFreeId
+                loResult =
+                    computeOBDDHelp lo hiResult.idManagment
 
                 myId =
-                    falseBddResult.nextFreeId
+                    if hiResult.myId == loResult.myId then
+                        loResult.myId
+
+                    else
+                        Maybe.withDefault ((+) 1 <| Maybe.withDefault 2 <| List.maximum <| Dict.values loResult.idManagment) (Dict.get ( variable, hiResult.myId, loResult.myId ) loResult.idManagment)
             in
             { myId = myId
-            , nextFreeId = myId + 1
-            , nodes = G.Node myId variable :: (trueBddResult.nodes ++ falseBddResult.nodes)
-            , edges = [ G.Edge myId trueBddResult.myId Basics.True, G.Edge myId falseBddResult.myId Basics.False ] ++ (trueBddResult.edges ++ falseBddResult.edges)
-            }
-
-
-computeOBDD : Formula -> List String -> G.Graph String Basics.Bool
-computeOBDD formula variables =
-    computeBDD formula variables
-        |> computeGraph
-        |> computeObddHelp
-
-
-computeObddHelp : G.Graph String Basics.Bool -> G.Graph String Basics.Bool
-computeObddHelp graph =
-    removeRedundantTests graph
-        |> (\( hasChanged, g ) -> ( hasChanged || Tuple.first (removeDuplicates g), Tuple.second (removeDuplicates g) ))
-        |> (\( hasChanged, g ) ->
-                if hasChanged then
-                    computeObddHelp g
+            , idManagment =
+                if myId <= 1 then
+                    loResult.idManagment
 
                 else
-                    g
-           )
-
-
-
---
-
-
-{-| Remove non-terminals with both edges pointing to the same node.
-Uses `removeRedundantTestsFindNodeId` to find such nodes. If such nodes are found their parent's edges are adjusted before they are removed, then `removeRedundantTests` calls itself until there are no more nodes found.
--}
-removeRedundantTests : G.Graph String Basics.Bool -> ( Basics.Bool, G.Graph String Basics.Bool )
-removeRedundantTests graph =
-    case removeRedundantTestsFindNodeId graph of
-        Nothing ->
-            ( Basics.False, graph )
-
-        Just ( contextToRemove, childId ) ->
-            let
-                parentNodes =
-                    IntDict.keys contextToRemove.incoming
-            in
-            ( Basics.True
-            , graph
-                |> G.mapContexts
-                    (\iteratedContext ->
-                        if List.any (\id -> iteratedContext.node.id == id) parentNodes then
-                            { iteratedContext | outgoing = IntDict.insert childId (Maybe.withDefault Basics.True (IntDict.get contextToRemove.node.id iteratedContext.outgoing)) iteratedContext.outgoing }
-
-                        else
-                            iteratedContext
-                    )
-                |> G.remove contextToRemove.node.id
-                |> removeRedundantTests
-                |> Tuple.second
-            )
-
-
-{-| Finds a Node which's edge only point to one node and returns its context. Additionally the found nodes childId is returned.
--}
-removeRedundantTestsFindNodeId : G.Graph String Basics.Bool -> Maybe ( G.NodeContext String Basics.Bool, G.NodeId )
-removeRedundantTestsFindNodeId graph =
-    getContexts graph
-        -- elm/graph only allows one edge between the same node per direction, that's why we can check for == 1 here.
-        |> List.Extra.find (\context -> List.length (IntDict.values context.outgoing) == 1)
-        |> Maybe.andThen (\context -> Maybe.map (\childDictEntry -> ( context, Tuple.first childDictEntry )) (IntDict.findMax context.outgoing))
-
-
-getContexts : G.Graph String Basics.Bool -> List (G.NodeContext String Basics.Bool)
-getContexts graph =
-    G.nodes graph
-        |> List.map (\a -> G.get a.id graph)
-        |> List.filterMap identity
-
-
-removeDuplicates : G.Graph String Basics.Bool -> ( Basics.Bool, G.Graph String Basics.Bool )
-removeDuplicates graph =
-    case findDuplicates (getContexts graph) of
-        [] ->
-            ( Basics.False, graph )
-
-        contextToKeep :: contextsToRemove ->
-            ( Basics.True
-            , G.mapContexts
-                (\context ->
-                    { context
-                        | outgoing =
-                            context.outgoing
-                                |> IntDict.toList
-                                |> List.map
-                                    (\( k, v ) ->
-                                        if List.any (\contextToRemove -> contextToRemove.node.id == k) contextsToRemove then
-                                            ( contextToKeep.node.id, v )
-
-                                        else
-                                            ( k, v )
-                                    )
-                                |> IntDict.fromList
-                    }
-                )
-                graph
-                |> (\g -> List.foldl G.remove g (List.map (\context -> context.node.id) contextsToRemove))
-                |> removeDuplicates
-                |> Tuple.second
-            )
-
-
-findDuplicates : List (G.NodeContext String Basics.Bool) -> List (G.NodeContext String Basics.Bool)
-findDuplicates contexts =
-    case contexts of
-        [] ->
-            []
-
-        contextToCompare :: contextTail ->
-            case List.filter (\context -> IntDict.toList context.outgoing == IntDict.toList contextToCompare.outgoing && context.node.id > 2) contextTail of
-                [] ->
-                    findDuplicates contextTail
-
-                result ->
-                    contextToCompare :: result
+                    Dict.insert ( variable, hiResult.myId, loResult.myId ) myId loResult.idManagment
+            , nodes = G.Node myId variable :: (hiResult.nodes ++ loResult.nodes)
+            , edges = [ G.Edge myId hiResult.myId Basics.True, G.Edge myId loResult.myId Basics.False ] ++ (hiResult.edges ++ loResult.edges)
+            }

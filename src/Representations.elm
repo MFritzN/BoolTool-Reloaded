@@ -3,16 +3,14 @@ module Representations exposing (..)
 import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
-import Dict exposing (Dict)
-import Html exposing (Html, a, button, div, form, h4, i, input, p, span, table, td, text, th, tr)
+import Html exposing (Html, a, div, h4, i, input, p, span, table, td, text, th, tr)
 import Html.Attributes exposing (class, placeholder, style, value)
 import Html.Events exposing (onClick, onInput)
 import List.Extra
-import Maybe exposing (withDefault)
 import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
-import OBDD exposing (computeBDD, computeGraph, computeOBDD, removeRedundantTests)
+import OBDD exposing (computeOBDD)
 import Parser exposing (DeadEnd, run)
-import Properties exposing (FormulaProperties, calculateProperties, calculateTruthTable)
+import Properties exposing (calculateProperties, calculateTruthTable)
 import Render as R
 import Render.StandardDrawers as RSD
 import Render.StandardDrawers.Attributes as RSDA
