@@ -89,7 +89,7 @@ listToConjunction : List String -> Formula
 listToConjunction list =
     case list of
         [] ->
-            BoolImpl.False
+            BoolImpl.True
 
         x :: [] ->
             case String.toInt x of
