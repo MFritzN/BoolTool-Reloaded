@@ -150,7 +150,7 @@ toString formula =
 
         Neg r_form ->
             if precedence (Neg r_form) > precedence r_form then
-                "(" ++ "¬" ++ toString r_form ++ ")"
+                "¬" ++ "(" ++ toString r_form ++ ")"
 
             else
                 "¬" ++ toString r_form
