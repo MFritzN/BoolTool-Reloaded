@@ -10,7 +10,7 @@ import Html.Events exposing (keyCode, on, onClick, onInput)
 import Json.Decode as Json exposing (string)
 import List.Extra
 import Maybe
-import Parser exposing (DeadEnd, run, variable)
+import Parser.Advanced exposing (DeadEnd, run, variable)
 import Set
 import Url exposing (Url)
 import ViewHelpers exposing (boolToSymbol, maybeToSymbol)
@@ -21,7 +21,7 @@ import ViewHelpers exposing (boolToSymbol, maybeToSymbol)
 
 
 type InputError
-    = ParserFailed Int (List DeadEnd)
+    = ParserFailed Int (List (DeadEnd Context Problem))
     | FoundDuplicateInString Formula
 
 
@@ -52,7 +52,7 @@ parseInputSet input =
         |> parseInputSetHelp [] 0
 
 
-parseInputSetHelp : List Formula -> Int -> List (Result (List DeadEnd) Formula) -> Result InputError (List Formula)
+parseInputSetHelp : List Formula -> Int -> List (Result (List (DeadEnd Context Problem)) Formula) -> Result InputError (List Formula)
 parseInputSetHelp returnList counter inputList =
     case inputList of
         [] ->

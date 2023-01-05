@@ -3,7 +3,7 @@ module BoolImplTest exposing (..)
 import BoolImpl exposing (..)
 import Dict exposing (..)
 import Expect exposing (..)
-import Parser exposing (run)
+import Parser.Advanced exposing (run)
 import Set
 import Test exposing (..)
 

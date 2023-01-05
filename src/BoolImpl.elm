@@ -1,8 +1,8 @@
 module BoolImpl exposing (..)
 
 import Dict exposing (Dict)
-import Parser exposing ((|.), (|=), Parser, end, keyword, succeed, symbol, variable)
-import Pratt exposing (constant, infixRight, prefix)
+import Parser.Advanced exposing ((|.), (|=), Parser, Token, end, inContext, keyword, succeed, symbol, variable)
+import Pratt.Advanced exposing (constant, infixRight, prefix)
 import Set exposing (..)
 
 
@@ -23,6 +23,22 @@ type Formula
     | Neg Formula
     | Impl Formula Formula
     | Var String
+
+
+type alias MyParser a =
+    Parser.Advanced.Parser Context Problem a
+
+
+type Context
+    = FormulaContext
+
+
+type Problem
+    = ExpectingVariable
+    | ExpectingOperator
+    | ExpectingOpeningBracket
+    | ExpectingClosingBracket
+    | ExpectingEnd
 
 
 precedence : Formula -> Int
@@ -78,56 +94,58 @@ equals form1 form2 =
             Basics.False
 
 
-typeVar : Parser String
+typeVar : Parser c Problem String
 typeVar =
     variable
         { start = Char.isLower
         , inner = \c -> Char.isAlphaNum c
         , reserved = Set.fromList [ "true", "false" ]
+        , expecting = ExpectingVariable
         }
 
 
-typeVarHelp : Pratt.Config Formula -> Parser Formula
+typeVarHelp : Pratt.Advanced.Config Context Problem Formula -> Parser Context Problem Formula
 typeVarHelp _ =
     succeed Var
         |= typeVar
 
 
-boolExpression : Parser Formula
+boolExpression : Parser Context Problem Formula
 boolExpression =
-    Pratt.expression
-        { oneOf =
-            [ typeVarHelp
-            , constant (keyword "True") True
-            , constant (keyword "False") False
-            , constant (symbol "⊤") True
-            , constant (symbol "⊥") False
-            , prefix (precedence (Neg True)) (symbol "¬") Neg
-            , parenthesizedExpression
-            ]
-        , andThenOneOf =
-            [ infixRight (precedence (And True True)) (symbol "∧") And
-            , infixRight (precedence (Or True True)) (symbol "∨") Or
-            , infixRight (precedence (Xor True True)) (symbol "⊕") Xor
-            , infixRight (precedence (Impl True True)) (symbol "→") Impl
-            ]
-        , spaces = Parser.spaces
-        }
+    inContext FormulaContext <|
+        Pratt.Advanced.expression
+            { oneOf =
+                [ typeVarHelp
+                , constant (keyword (Parser.Advanced.Token "True" ExpectingVariable)) True
+                , constant (keyword (Parser.Advanced.Token "False" ExpectingVariable)) False
+                , constant (symbol <| Parser.Advanced.Token "⊤" ExpectingVariable) True
+                , constant (symbol <| Parser.Advanced.Token "⊥" ExpectingVariable) False
+                , prefix (precedence (Neg True)) (symbol (Parser.Advanced.Token "¬" ExpectingOperator)) Neg
+                , parenthesizedExpression
+                ]
+            , andThenOneOf =
+                [ infixRight (precedence (And True True)) (symbol <| Parser.Advanced.Token "∧" ExpectingOperator) And
+                , infixRight (precedence (Or True True)) (symbol <| Parser.Advanced.Token "∨" ExpectingVariable) Or
+                , infixRight (precedence (Xor True True)) (symbol <| Parser.Advanced.Token "⊕" ExpectingVariable) Xor
+                , infixRight (precedence (Impl True True)) (symbol <| Parser.Advanced.Token "→" ExpectingVariable) Impl
+                ]
+            , spaces = Parser.Advanced.spaces
+            }
 
 
-parenthesizedExpression : Pratt.Config Formula -> Parser Formula
+parenthesizedExpression : Pratt.Advanced.Config c Problem Formula -> Parser c Problem Formula
 parenthesizedExpression config =
     succeed identity
-        |. symbol "("
-        |= Pratt.subExpression 0 config
-        |. symbol ")"
+        |. symbol (Parser.Advanced.Token "(" ExpectingOpeningBracket)
+        |= Pratt.Advanced.subExpression 0 config
+        |. symbol (Parser.Advanced.Token ")" ExpectingClosingBracket)
 
 
-formula_p : Parser Formula
+formula_p : Parser Context Problem Formula
 formula_p =
     succeed identity
         |= boolExpression
-        |. end
+        |. end ExpectingEnd
 
 
 toString : Formula -> String

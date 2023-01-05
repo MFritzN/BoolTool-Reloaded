@@ -9,7 +9,8 @@ import Html.Events exposing (onClick, onInput)
 import List.Extra
 import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
 import OBDD exposing (computeOBDD)
-import Parser exposing (DeadEnd, run)
+import Parser.Advanced exposing (DeadEnd, run)
+import ParserError exposing (parserError)
 import Properties exposing (calculateProperties, calculateTruthTable)
 import Render as R
 import Render.StandardDrawers as RSD
@@ -28,7 +29,7 @@ import ViewHelpers exposing (boolToSymbol)
 type alias Model =
     { formulaInput : String
     , list : List BoolImpl.Formula
-    , formulaInputParsed : Result (List DeadEnd) Formula
+    , formulaInputParsed : Result (List (DeadEnd Context Problem)) Formula
     , key : Key
     , url : Url
     , variableOrder : List String
@@ -53,7 +54,7 @@ initModel urlString key url =
     }
 
 
-getVariableOrder : Result (List DeadEnd) Formula -> List String
+getVariableOrder : Result (List (DeadEnd Context Problem)) Formula -> List String
 getVariableOrder formulaInputParsed =
     formulaInputParsed
         |> Result.map getVariables
@@ -153,7 +154,7 @@ view model =
                     text (toString formula)
 
                 Err x ->
-                    p [ class "help is-danger" ] [ text (Debug.toString x) ]
+                    p [ class "help is-danger" ] [ text (parserError x model.formulaInput) ]
             ]
         , div []
             (case model.formulaInputParsed of
