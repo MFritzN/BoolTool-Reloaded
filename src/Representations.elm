@@ -154,7 +154,7 @@ view model =
                     text (toString formula)
 
                 Err x ->
-                    p [ class "help is-danger" ] [ text (parserError x model.formulaInput) ]
+                    p [ class "help is-danger" ] [ parserError x model.formulaInput ]
             ]
         , div []
             (case model.formulaInputParsed of
