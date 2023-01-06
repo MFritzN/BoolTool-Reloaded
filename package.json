@@ -3,11 +3,12 @@
     "elm-test": "^0.19.1-revision10"
   },
   "dependencies": {
+    "@creativebulma/bulma-tooltip": "^1.2.0",
     "bulma": "^0.9.4",
     "node-sass-chokidar": "^2.0.0"
   },
   "scripts": {
-    "build-css": "node-sass-chokidar src/ -o src/",
-    "watch-css": "npm run build-css && node-sass-chokidar src/ -o src/ --watch --recursive"
+    "build-css": "node-sass-chokidar --include-path ./src --include-path ./node_modules src/ -o src/",
+    "watch-css": "npm run build-css && node-sass-chokidar --include-path ./src --include-path ./node_modules src/ -o src/ --watch --recursive"
   }
 }

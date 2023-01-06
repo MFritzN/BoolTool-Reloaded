@@ -1,70 +1,103 @@
 module Main exposing (..)
 
+import Adequacy
 import BoolImpl exposing (..)
 import Browser
 import Browser.Navigation as Nav
-import Url
-import Html exposing (div, text, a, nav)
+import Html exposing (a, div, h3, nav, text)
 import Html.Attributes exposing (..)
-import Url.Parser exposing (Parser, (<?>), oneOf, s, parse)
-import Url.Parser.Query as Query
-import Adequacy
 import Representations
+import Url
+import Url.Parser exposing ((</>), Parser, fragment, oneOf, parse, s, top)
+
 
 
 -- MAIN
 
+
 main : Program () Model Msg
 main =
-  Browser.application
-    { init = init
-    , view = view
-    , update = update
-    , subscriptions = subscriptions
-    , onUrlChange = UrlChanged
-    , onUrlRequest = LinkClicked
-    }
+    Browser.application
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        , onUrlChange = UrlChanged
+        , onUrlRequest = LinkClicked
+        }
 
 
 
 -- MODEL
 
+
 type alias Model =
     { url : Url.Url
-    , key : Nav.Key
-    , route : Maybe Route
+    , route : Route
     }
+
 
 type Route
     = Adequacy String Adequacy.Model
-    | Representation String
+    | Representation String Representations.Model
+    | NotFound Nav.Key
+
 
 type PrimitiveRoute
     = PrimitiveAdequacy (Maybe String)
     | PrimitiveRepresentation (Maybe String)
+    | PrimitiveHome
+
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init _ url key =
-    ({url = url
-    , key = key
-    , route = getRoute url
-    }, Cmd.none)
+    let
+        routeTuple =
+            getRoute url key
+    in
+    ( { url = url
+      , route = Tuple.first routeTuple
+      }
+    , Tuple.second routeTuple
+    )
 
-getRoute : Url.Url -> Maybe Route
-getRoute url = case (parse routeParser url) of
-            Just (PrimitiveRepresentation Nothing) -> Just (Representation "")
-            Just (PrimitiveRepresentation (Just a)) -> Just (Representation a)
-            Just (PrimitiveAdequacy Nothing) -> Just (Adequacy "" (Adequacy.initModel ""))
-            Just (PrimitiveAdequacy (Just a)) -> Just (Adequacy a (Adequacy.initModel "a"))
-            _ -> Nothing
+
+getRoute : Url.Url -> Nav.Key -> ( Route, Cmd Msg )
+getRoute url key =
+    case parse routeParser url of
+        Just (PrimitiveRepresentation Nothing) ->
+            ( Representation "" (Representations.initModel "" key url), Cmd.none )
+
+        Just (PrimitiveRepresentation (Just a)) ->
+            ( Representation a (Representations.initModel a key url), Cmd.none )
+
+        Just (PrimitiveAdequacy Nothing) ->
+            ( Adequacy "" (Adequacy.initModel "" key url), Cmd.none )
+
+        Just (PrimitiveAdequacy (Just a)) ->
+            ( Adequacy a (Adequacy.initModel a key url), Cmd.none )
+
+        Just PrimitiveHome ->
+            let
+                newUrl =
+                    { url | path = "/representations" }
+            in
+            ( Representation "" (Representations.initModel "" key newUrl), Nav.replaceUrl key (Url.toString newUrl) )
+
+        _ ->
+            ( NotFound key, Cmd.none )
+
 
 
 -- UPDATE
+
 
 type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | AdequacyMsg Adequacy.Msg
+    | RepresentationMsg Representations.Msg
+
 
 resultOk : Result a b -> Bool
 resultOk result =
@@ -75,69 +108,99 @@ resultOk result =
         Err _ ->
             Basics.False
 
+
 routeParser : Parser (PrimitiveRoute -> a) a
-routeParser = oneOf
-    [
-        Url.Parser.map PrimitiveAdequacy (s  "adequacy" <?> Query.string "q")
-        , Url.Parser.map PrimitiveRepresentation (s "representation" <?> Query.string "q")
-    ]
+routeParser =
+    oneOf
+        [ Url.Parser.map PrimitiveHome top
+        , Url.Parser.map PrimitiveAdequacy (s "adequacy" </> fragment identity)
+        , Url.Parser.map PrimitiveRepresentation (s "representations" </> fragment identity)
+        ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case (msg, model.route) of
+    let
+        key =
+            case model.route of
+                Adequacy _ aModel ->
+                    aModel.key
 
-        (LinkClicked urlRequest, _) ->
+                Representation _ rModel ->
+                    rModel.key
+
+                NotFound k ->
+                    k
+    in
+    case ( msg, model.route ) of
+        ( LinkClicked urlRequest, _ ) ->
             case urlRequest of
                 Browser.Internal url ->
-                    ({model | route = getRoute url}
-                        , Nav.pushUrl model.key (Url.toString url) )
+                    ( { model | route = Tuple.first (getRoute url key) }
+                    , Nav.pushUrl key (Url.toString url)
+                    )
 
                 Browser.External href ->
                     ( model, Nav.load href )
 
-        (UrlChanged url, _) ->
+        ( UrlChanged url, _ ) ->
             ( { model | url = url }
             , Cmd.none
             )
 
-        (AdequacyMsg aMsg, Just (Adequacy _ aModel)) -> ({model | route = Just (Adequacy "" (Tuple.first (Adequacy.update aMsg aModel)))}, Cmd.map (\m -> AdequacyMsg m) (Tuple.second (Adequacy.update aMsg aModel)))
+        ( AdequacyMsg aMsg, Adequacy _ aModel ) ->
+            ( { model | route = Adequacy "" (Tuple.first (Adequacy.update aMsg aModel)) }, Cmd.map (\m -> AdequacyMsg m) (Tuple.second (Adequacy.update aMsg aModel)) )
 
-        (_,_) -> 
+        ( RepresentationMsg rMsg, Representation _ rModel ) ->
+            ( { model | route = Representation "" (Tuple.first (Representations.update rMsg rModel)) }, Cmd.map (\m -> RepresentationMsg m) (Tuple.second (Representations.update rMsg rModel)) )
+
+        ( _, _ ) ->
             -- Ignore messages that come from a non active view
             ( model, Cmd.none )
+
+
 
 -- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-  Sub.none
+    Sub.none
+
 
 
 -- VIEW
 
+
 view : Model -> Browser.Document Msg
 view model =
-    {title = "home"
-    , body = [
-
-        nav [class "navbar"] [
-            div [class "navbar-menu is-active"] [
-                div [class "navbar-start"] [
-                    a [class "navbar-item", href "/representation"] [
-                        text "Representations"
+    { title = "BoolTool Reloaded"
+    , body =
+        [ nav [ class "navbar" ]
+            [ div [ class "navbar-brand" ]
+                [ a [ class "navbar-item", href "/" ]
+                    [ h3 [] [ text "BoolTool Reloaded" ]
                     ]
-                    , a [class "navbar-item", href "/adequacy"] [
-                        text "Adequacy"
+                ]
+            , div [ class "navbar-menu is-active" ]
+                [ div [ class "navbar-start" ]
+                    [ a [ class "navbar-item", href "/representations" ]
+                        [ text "Representations"
+                        ]
+                    , a [ class "navbar-item", href "/adequacy" ]
+                        [ text "Adequacy"
+                        ]
                     ]
                 ]
             ]
-        ]
         , case model.route of
-            Just (Adequacy _ aModel) -> Html.map (\a -> AdequacyMsg a) (Adequacy.view aModel)
-            Just (Representation _) -> text "Representation"
-            Nothing -> text "404"
+            Adequacy _ aModel ->
+                Html.map (\a -> AdequacyMsg a) (Adequacy.view aModel)
+
+            Representation _ rModel ->
+                Html.map (\r -> RepresentationMsg r) (Representations.view rModel)
+
+            NotFound _ ->
+                text "404"
         ]
     }
-

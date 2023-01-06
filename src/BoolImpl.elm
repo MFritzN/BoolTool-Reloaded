@@ -1,8 +1,8 @@
 module BoolImpl exposing (..)
 
 import Dict exposing (Dict)
-import Parser exposing ((|.), (|=), Parser, end, keyword, succeed, symbol, variable)
-import Pratt exposing (constant, infixRight, prefix)
+import Parser.Advanced exposing ((|.), (|=), Parser, Token, end, inContext, keyword, succeed, symbol, variable)
+import Pratt.Advanced exposing (constant, infixRight, prefix)
 import Set exposing (..)
 
 
@@ -23,6 +23,44 @@ type Formula
     | Neg Formula
     | Impl Formula Formula
     | Var String
+
+
+type alias MyParser a =
+    Parser.Advanced.Parser Context Problem a
+
+
+type Context
+    = FormulaContext
+
+
+type Problem
+    = ExpectingVariable
+    | ExpectingOperator
+    | ExpectingOpeningBracket
+    | ExpectingClosingBracket
+    | ExpectingEnd
+
+
+precedence : Formula -> Int
+precedence operator =
+    case operator of
+        And _ _ ->
+            3
+
+        Impl _ _ ->
+            1
+
+        Xor _ _ ->
+            2
+
+        Or _ _ ->
+            3
+
+        Neg _ ->
+            4
+
+        _ ->
+            5
 
 
 equals : Formula -> Formula -> Bool
@@ -56,87 +94,147 @@ equals form1 form2 =
             Basics.False
 
 
-
--- The following code was adapted from
--- https://github.com/dmy/elm-pratt-parser/blob/2.0.0/examples/Math.elm (2022-11-08)
-
-
-typeVar : Parser String
+typeVar : Parser c Problem String
 typeVar =
     variable
         { start = Char.isLower
         , inner = \c -> Char.isAlphaNum c
         , reserved = Set.fromList [ "true", "false" ]
+        , expecting = ExpectingVariable
         }
 
 
-typeVarHelp : Pratt.Config Formula -> Parser Formula
+typeVarHelp : Pratt.Advanced.Config Context Problem Formula -> Parser Context Problem Formula
 typeVarHelp _ =
     succeed Var
         |= typeVar
 
 
-boolExpression : Parser Formula
+boolExpression : Parser Context Problem Formula
 boolExpression =
-    Pratt.expression
-        { oneOf =
-            [ typeVarHelp
-            , constant (keyword "true") True
-            , constant (keyword "false") False
-            , prefix 3 (symbol "~") Neg
-            , parenthesizedExpression
-            ]
-        , andThenOneOf =
-            [ infixRight 2 (symbol "&") And
-            , infixRight 2 (symbol "|") Or
-            , infixRight 2 (symbol "^") Xor
-            , infixRight 1 (symbol "->") Impl
-            ]
-        , spaces = Parser.spaces
-        }
+    inContext FormulaContext <|
+        Pratt.Advanced.expression
+            { oneOf =
+                [ typeVarHelp
+                , constant (keyword (Parser.Advanced.Token "True" ExpectingVariable)) True
+                , constant (keyword (Parser.Advanced.Token "False" ExpectingVariable)) False
+                , constant (symbol <| Parser.Advanced.Token "⊤" ExpectingVariable) True
+                , constant (symbol <| Parser.Advanced.Token "⊥" ExpectingVariable) False
+                , prefix (precedence (Neg True)) (symbol (Parser.Advanced.Token "¬" ExpectingOperator)) Neg
+                , parenthesizedExpression
+                ]
+            , andThenOneOf =
+                [ infixRight (precedence (And True True)) (symbol <| Parser.Advanced.Token "∧" ExpectingOperator) And
+                , infixRight (precedence (Or True True)) (symbol <| Parser.Advanced.Token "∨" ExpectingVariable) Or
+                , infixRight (precedence (Xor True True)) (symbol <| Parser.Advanced.Token "⊕" ExpectingVariable) Xor
+                , infixRight (precedence (Impl True True)) (symbol <| Parser.Advanced.Token "→" ExpectingVariable) Impl
+                ]
+            , spaces = Parser.Advanced.spaces
+            }
 
 
-parenthesizedExpression : Pratt.Config Formula -> Parser Formula
+parenthesizedExpression : Pratt.Advanced.Config c Problem Formula -> Parser c Problem Formula
 parenthesizedExpression config =
     succeed identity
-        |. symbol "("
-        |= Pratt.subExpression 0 config
-        |. symbol ")"
+        |. symbol (Parser.Advanced.Token "(" ExpectingOpeningBracket)
+        |= Pratt.Advanced.subExpression 0 config
+        |. symbol (Parser.Advanced.Token ")" ExpectingClosingBracket)
 
 
-formula_p : Parser Formula
+formula_p : Parser Context Problem Formula
 formula_p =
     succeed identity
         |= boolExpression
-        |. end
+        |. end ExpectingEnd
 
 
 toString : Formula -> String
 toString formula =
     case formula of
         True ->
-            "T"
+            "⊤"
 
         False ->
-            "F"
+            "⊥"
 
         Var v ->
             v
 
-        And l_form r_form ->
-            "(" ++ toString l_form ++ "&" ++ toString r_form ++ ")"
+        And lForm rForm ->
+            toStringHelp "∧" (And lForm rForm) lForm rForm
 
-        Or l_form r_form ->
-            "(" ++ toString l_form ++ "|" ++ toString r_form ++ ")"
+        Or lForm rForm ->
+            toStringHelp "∨" (Or lForm rForm) lForm rForm
 
         Neg r_form ->
-            "(" ++ "~" ++ toString r_form ++ ")"
+            if precedence (Neg r_form) > precedence r_form then
+                "¬" ++ "(" ++ toString r_form ++ ")"
 
-        Impl l_form r_form ->
-            "(" ++ toString l_form ++ "->" ++ toString r_form ++ ")"
+            else
+                "¬" ++ toString r_form
 
-        Xor l_form r_form ->
-            "(" ++ toString l_form ++ "^" ++ toString r_form ++ ")"
+        Impl lForm rForm ->
+            toStringHelp "→" (Impl lForm rForm) lForm rForm
+
+        Xor lForm rForm ->
+            toStringHelp "⊕" (Xor lForm rForm) lForm rForm
+
+
+toStringHelp : String -> Formula -> Formula -> Formula -> String
+toStringHelp symbol formula lForm rForm =
+    (if precedence formula >= precedence lForm then
+        "(" ++ toString lForm ++ ")"
+
+     else
+        toString lForm
+    )
+        ++ " "
+        ++ symbol
+        ++ " "
+        ++ (if precedence formula > precedence rForm then
+                "(" ++ toString rForm ++ ")"
+
+            else
+                toString rForm
+           )
+
+
+{-| Replaces some input symbols and latex equivalents with their correpsonding Unicode charackters.
+
+    preprocessString "a & b \wedge c" == "a ∧ b ∧ c"
+
+-}
+preprocessString : String -> String
+preprocessString string =
+    string
+        |> String.replace "\\wedge" "∧"
+        |> String.replace "&" "∧"
+        |> String.replace "\\vee" "∨"
+        |> String.replace "|" "∨"
+        |> String.replace "~" "¬"
+        |> String.replace "\\neg" "¬"
+        |> String.replace "!" "¬"
+        |> String.replace "^" "⊕"
+        |> String.replace "->" "→"
+        |> String.replace "\\to" "→"
+        |> String.replace "\\rightarrow" "→"
+        |> String.replace "\\implies" "→"
+        |> String.replace "\\oplus" "⊕"
+        |> String.replace "\\top" "⊤"
+        |> String.replace "\\bottom" "⊥"
+
+
+reversePreprocessString : String -> String
+reversePreprocessString string =
+    string
+        |> String.filter (\c -> c /= ' ')
+        |> String.replace "∧" "\\wedge"
+        |> String.replace "∨" "\\vee"
+        |> String.replace "¬" "\\neg"
+        |> String.replace "⊕" "\\oplus"
+        |> String.replace "→" "\\implies"
+        |> String.replace "⊤" "\\top"
+        |> String.replace "⊥" "\\bottom"
 
 
 getVariables : Formula -> Set String
@@ -170,8 +268,8 @@ getVariables formula =
 {-| Evaluate a [`Formula`](BoolImpl#Formula).
 This functions returns `True` if Variable Values are mssing. If this is a possible scnario use [`evaluateSafe`](BoolImpl#evaluateSafe)
 -}
-evaluate : Formula -> Dict String Bool -> Bool
-evaluate formula variables =
+evaluateUnsafe : Formula -> Dict String Bool -> Bool
+evaluateUnsafe formula variables =
     Result.withDefault Basics.True (evaluateSafe formula variables)
 
 
@@ -185,64 +283,22 @@ evaluateSafe formula variables =
             Ok Basics.False
 
         Var string ->
-            case Dict.get string variables of
-                Just value ->
-                    Ok value
-
-                Nothing ->
-                    Err ("Could not find variable value for " ++ string)
+            Result.fromMaybe ("Could not find value for " ++ string) (Dict.get string variables)
 
         Or subFormA subFormB ->
-            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
-                ( Err err, _ ) ->
-                    Err err
-
-                ( _, Err err ) ->
-                    Err err
-
-                ( Ok boolA, Ok boolB ) ->
-                    Ok (boolA || boolB)
+            Result.map2 (||) (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
         And subFormA subFormB ->
-            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
-                ( Err err, _ ) ->
-                    Err err
-
-                ( _, Err err ) ->
-                    Err err
-
-                ( Ok boolA, Ok boolB ) ->
-                    Ok (boolA && boolB)
+            Result.map2 (&&) (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
         Neg subForm ->
-            case evaluateSafe subForm variables of
-                Ok bool ->
-                    Ok (not bool)
-
-                Err err ->
-                    Err err
+            Result.map not (evaluateSafe subForm variables)
 
         Impl subFormA subFormB ->
-            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
-                ( Err err, _ ) ->
-                    Err err
-
-                ( _, Err err ) ->
-                    Err err
-
-                ( Ok boolA, Ok boolB ) ->
-                    Ok (not boolA || boolB)
+            Result.map2 (\a b -> not a || b) (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
         Xor subFormA subFormB ->
-            case ( evaluateSafe subFormA variables, evaluateSafe subFormB variables ) of
-                ( Err err, _ ) ->
-                    Err err
-
-                ( _, Err err ) ->
-                    Err err
-
-                ( Ok boolA, Ok boolB ) ->
-                    Ok (xor boolA boolB)
+            Result.map2 xor (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
 
 {-| Interprets the values in the dictonary as a binary number and increases it by 1 until all digits are 1.
@@ -268,3 +324,111 @@ iterateVariablesHelp changedVariables unchangedVariables =
 
         Basics.True :: unchangedVariablesTail ->
             iterateVariablesHelp (changedVariables ++ [ Basics.False ]) unchangedVariablesTail
+
+
+simplify : Formula -> Formula
+simplify formula =
+    case formula of
+        True ->
+            True
+
+        False ->
+            False
+
+        Var string ->
+            Var string
+
+        And form1 form2 ->
+            case ( simplify form1, simplify form2 ) of
+                ( True, x ) ->
+                    x
+
+                ( x, True ) ->
+                    x
+
+                ( False, _ ) ->
+                    False
+
+                ( _, False ) ->
+                    False
+
+                ( x, y ) ->
+                    And x y
+
+        Xor form1 form2 ->
+            case ( simplify form1, simplify form2 ) of
+                ( True, True ) ->
+                    False
+
+                ( False, x ) ->
+                    x
+
+                ( x, False ) ->
+                    x
+
+                ( x, y ) ->
+                    Xor x y
+
+        Or form1 form2 ->
+            case ( simplify form1, simplify form2 ) of
+                ( True, _ ) ->
+                    True
+
+                ( _, True ) ->
+                    True
+
+                ( False, x ) ->
+                    x
+
+                ( x, False ) ->
+                    x
+
+                ( x, y ) ->
+                    Or x y
+
+        Impl form1 form2 ->
+            case ( simplify form1, simplify form2 ) of
+                ( False, _ ) ->
+                    True
+
+                ( True, x ) ->
+                    x
+
+                ( x, False ) ->
+                    x
+
+                ( x, y ) ->
+                    Impl x y
+
+        Neg form1 ->
+            case simplify form1 of
+                True ->
+                    False
+
+                False ->
+                    True
+
+                x ->
+                    Neg x
+
+
+varsToString : Dict String Basics.Bool -> String
+varsToString vars =
+    let
+        stringVars =
+            String.dropRight 2
+                (List.foldl
+                    (\value string ->
+                        string
+                            ++ (if value then
+                                    "1, "
+
+                                else
+                                    "0, "
+                               )
+                    )
+                    ""
+                    (Dict.values vars)
+                )
+    in
+    "f ( " ++ stringVars ++ " )"
