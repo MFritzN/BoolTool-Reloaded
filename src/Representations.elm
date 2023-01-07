@@ -3,21 +3,22 @@ module Representations exposing (..)
 import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
-import Html exposing (Html, a, div, h4, i, input, p, span, table, td, text, th, tr)
-import Html.Attributes exposing (class, placeholder, style, value)
+import Html exposing (Html, a, button, div, h4, i, input, label, p, span, table, td, text, th, tr)
+import Html.Attributes exposing (class, placeholder, readonly, style, value)
 import Html.Events exposing (onClick, onInput)
 import List.Extra
 import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
 import OBDD exposing (computeOBDD)
 import Parser.Advanced exposing (DeadEnd, run)
 import ParserError exposing (parserError)
+import Ports
 import Properties exposing (calculateProperties, calculateTruthTable)
 import Render as R
 import Render.StandardDrawers as RSD
 import Render.StandardDrawers.Attributes as RSDA
 import Render.StandardDrawers.Types exposing (Shape(..))
 import Result.Extra
-import Set
+import Set exposing (Set)
 import Url exposing (Url)
 import ViewHelpers exposing (boolToSymbol)
 
@@ -33,6 +34,7 @@ type alias Model =
     , key : Key
     , url : Url
     , variableOrder : List String
+    , expandedLaTeX : Set String
     }
 
 
@@ -51,6 +53,7 @@ initModel urlString key url =
     , key = key
     , url = url
     , variableOrder = getVariableOrder formulaInputParsed
+    , expandedLaTeX = Set.empty
     }
 
 
@@ -69,6 +72,8 @@ getVariableOrder formulaInputParsed =
 type Msg
     = InputChanged String
     | VariableOrderChanged Int MoveTo
+    | LaTeXClicked String
+    | Copy String
 
 
 type MoveTo
@@ -128,6 +133,20 @@ update msg model =
             , Cmd.none
             )
 
+        LaTeXClicked title ->
+            let
+                newSet =
+                    if Set.member title model.expandedLaTeX then
+                        Set.remove title model.expandedLaTeX
+
+                    else
+                        Set.insert title model.expandedLaTeX
+            in
+            ( { model | expandedLaTeX = newSet }, Cmd.none )
+
+        Copy toCopy ->
+            ( model, Ports.copy toCopy )
+
 
 
 -- View
@@ -160,10 +179,10 @@ view model =
             (case model.formulaInputParsed of
                 Ok formula ->
                     [ renderProperties formula
-                    , renderNormalForm "ANF" formula (\f -> listToANF (calculateANF f))
-                    , renderNormalForm "NNF" formula calculateNNF
-                    , renderNormalForm "CNF" formula calculateCNF
-                    , renderNormalForm "DNF" formula calculateDNF
+                    , renderNormalForm "ANF" formula (\f -> listToANF (calculateANF f)) model.expandedLaTeX
+                    , renderNormalForm "NNF" formula calculateNNF model.expandedLaTeX
+                    , renderNormalForm "CNF" formula calculateCNF model.expandedLaTeX
+                    , renderNormalForm "DNF" formula calculateDNF model.expandedLaTeX
                     , renderTruthTable formula
                     , renderOBDD formula model.variableOrder
                     ]
@@ -199,17 +218,36 @@ renderProperties formula =
         ]
 
 
-renderNormalForm : String -> Formula -> (Formula -> Formula) -> Html Msg
-renderNormalForm title formula calculateNormalForm =
+renderNormalForm : String -> Formula -> (Formula -> Formula) -> Set String -> Html Msg
+renderNormalForm title formula calculateNormalForm expandedLaTeX =
     let
         normalForm =
             calculateNormalForm formula
     in
     div [ class "box content" ]
-        [ h4 [] [ text title ]
-        , text (toString normalForm)
+        ([ h4 [] [ text title ]
+         , text <| toString normalForm
+         , button [ onClick <| LaTeXClicked title, class "button is-small", style "float" "right" ] [ text "LaTeX" ]
+         ]
+            ++ (if Set.member title expandedLaTeX then
+                    [ renderLaTeX <| toString normalForm ]
 
-        --, p [] [ text (Debug.toString normalForm) ]
+                else
+                    []
+               )
+        )
+
+
+renderLaTeX : String -> Html Msg
+renderLaTeX formula =
+    let
+        laTeX =
+            prettyPrintToLaTeX formula
+    in
+    div [ class "field" ]
+        [ label [ class "label" ] [ text "LaTeX to Copy" ]
+        , input [ value laTeX, class "input copy-input", readonly Basics.True ] []
+        , button [ class "button is-small", onClick <| Copy laTeX ] [ text "copy" ]
         ]
 
 

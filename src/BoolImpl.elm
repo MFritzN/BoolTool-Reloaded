@@ -432,3 +432,20 @@ varsToString vars =
                 )
     in
     "f ( " ++ stringVars ++ " )"
+
+
+formulaToLaTeX : Formula -> String
+formulaToLaTeX formula =
+    prettyPrintToLaTeX <| toString formula
+
+
+prettyPrintToLaTeX : String -> String
+prettyPrintToLaTeX string =
+    string
+        |> String.replace "∧" "\\\\wedge"
+        |> String.replace "∨" "\\\\vee"
+        |> String.replace "¬" "\\\\neg"
+        |> String.replace "⊕" "\\\\oplus"
+        |> String.replace "→" "\\\\implies"
+        |> String.replace "⊤" "\\\\top"
+        |> String.replace "⊥" "\\\\bottom"
