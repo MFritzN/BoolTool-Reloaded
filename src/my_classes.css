@@ -1,0 +1,26 @@
+.progress-ww div {
+    display: flex;
+    white-space:pre;
+    align-items:stretch;
+  }
+  
+  .progress-ww div span {
+    flex: 1;
+    align-items:stretch;
+  }
+  
+  .progress-ww div span:first-of-type {
+    text-align: right;
+    padding-right: 0px;
+    align-items:stretch;
+  }
+  
+  .progress-ww div span:last-of-type {
+    padding-left: 0px;
+    align-items:stretch;
+  }
+
+.wavy {
+    text-decoration-line: underline;
+    text-decoration-style: wavy;
+}

@@ -4,8 +4,10 @@ import Adequacy
 import BoolImpl exposing (..)
 import Browser
 import Browser.Navigation as Nav
-import Html exposing (a, div, h3, nav, text)
+import Html exposing (Html, a, button, div, h3, nav, text)
 import Html.Attributes exposing (..)
+import Html.Events exposing (onClick)
+import Ports
 import Representations
 import Url
 import Url.Parser exposing ((</>), Parser, fragment, oneOf, parse, s, top)
@@ -97,6 +99,7 @@ type Msg
     | UrlChanged Url.Url
     | AdequacyMsg Adequacy.Msg
     | RepresentationMsg Representations.Msg
+    | Share
 
 
 resultOk : Result a b -> Bool
@@ -133,6 +136,9 @@ update msg model =
                     k
     in
     case ( msg, model.route ) of
+        ( Share, _ ) ->
+            ( model, Ports.share () )
+
         ( LinkClicked urlRequest, _ ) ->
             case urlRequest of
                 Browser.Internal url ->
@@ -191,6 +197,9 @@ view model =
                         [ text "Adequacy"
                         ]
                     ]
+                , div [ class "navbar-end" ]
+                    [ div [ class "navbar-item" ] [ shareButton ]
+                    ]
                 ]
             ]
         , case model.route of
@@ -204,3 +213,8 @@ view model =
                 text "404"
         ]
     }
+
+
+shareButton : Html Msg
+shareButton =
+    button [ class "button is-small", onClick Share ] [ text "Share" ]
