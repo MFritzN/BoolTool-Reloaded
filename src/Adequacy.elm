@@ -4,13 +4,15 @@ import ANF
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key)
 import Dict exposing (..)
-import Html exposing (Html, button, div, input, span, table, td, text, th, tr)
+import Html exposing (Html, button, div, input, p, span, table, td, text, th, tr)
 import Html.Attributes exposing (..)
 import Html.Events exposing (keyCode, on, onClick, onInput)
 import Json.Decode as Json exposing (string)
 import List.Extra
 import Maybe
 import Parser.Advanced exposing (DeadEnd, run, variable)
+import ParserError exposing (parserError)
+import Result.Extra
 import Set
 import Url exposing (Url)
 import ViewHelpers exposing (boolToSymbol, maybeToSymbol)
@@ -28,7 +30,7 @@ type InputError
 type alias Model =
     { setInput : String
     , list : List BoolImpl.Formula
-    , setInputParsed : Result InputError (List Formula)
+    , setInputParsed : Result (Html Msg) (List Formula)
     , key : Key
     , url : Url
     }
@@ -44,26 +46,26 @@ initModel string key url =
     }
 
 
-parseInputSet : String -> Result InputError (List Formula)
+parseInputSet : String -> Result (Html Msg) (List Formula)
 parseInputSet input =
     input
         |> String.split ","
-        |> List.map (\stringFormula -> run formula_p stringFormula)
+        |> List.map (\stringFormula -> ( run formula_p stringFormula, stringFormula ))
         |> parseInputSetHelp [] 0
 
 
-parseInputSetHelp : List Formula -> Int -> List (Result (List (DeadEnd Context Problem)) Formula) -> Result InputError (List Formula)
+parseInputSetHelp : List Formula -> Int -> List ( Result (List (DeadEnd Context Problem)) Formula, String ) -> Result (Html Msg) (List Formula)
 parseInputSetHelp returnList counter inputList =
     case inputList of
         [] ->
             Ok returnList
 
-        (Err a) :: _ ->
-            Err (ParserFailed counter a)
+        ( Err error, string ) :: _ ->
+            Err (parserError error string)
 
-        (Ok a) :: tail ->
+        ( Ok a, _ ) :: tail ->
             if List.any (equals a) returnList then
-                Err (FoundDuplicateInString a)
+                Err <| text <| "There is a duplicate in here: " ++ toString a
 
             else
                 parseInputSetHelp (returnList ++ [ a ]) (counter + 1) tail
@@ -125,7 +127,7 @@ renderPostConditions list =
     else
         table [ class "table is-narrow box" ]
             (tr []
-                [ th [] [ text "Function" ]
+                [ th [] [ text "Formula" ]
                 , th [] [ text "f (0,...,0) ≠ 0: " ]
                 , th [] [ text "f (1,...,1) ≠ 1: " ]
                 , th [] [ text "not monotone:" ]
@@ -136,7 +138,7 @@ renderPostConditions list =
                 :: List.indexedMap
                     (\index formula ->
                         tr []
-                            [ td [] [ span [ class "tag" ] [ text (BoolImpl.toString formula), button [ onClick (RemoveFromSet index), class "delete" ] [] ] ]
+                            [ td [] [ span [ class "tag" ] [ text (functionHeaderToString (Set.toList <| getVariables formula) ++ " = " ++ toString formula), button [ onClick (RemoveFromSet index), class "delete" ] [] ] ]
                             , td []
                                 [ text (boolToSymbol (allInputNotEqInput formula Basics.False)) ]
                             , td []
@@ -179,17 +181,26 @@ renderPostConditions list =
 
 view : Model -> Html Msg
 view model =
-    div []
+    div [ class "field" ]
         [ div [ onEnter AddToSet, class "box" ]
-            [ input [ placeholder "Function Input", value model.setInput, onInput InputChanged, class "input avoid-cursor-jump" ] []
-            , text
-                (case model.setInputParsed of
-                    Ok list ->
-                        functionSetToString list
+            [ input
+                [ if Result.Extra.isOk model.setInputParsed then
+                    class ""
 
-                    Err x ->
-                        Debug.toString x
-                )
+                  else
+                    class "is-danger"
+                , placeholder "Function Input"
+                , value model.setInput
+                , onInput InputChanged
+                , class "input avoid-cursor-jump"
+                ]
+                []
+            , case model.setInputParsed of
+                Ok list ->
+                    text <| functionSetToString list
+
+                Err x ->
+                    p [ class "help is-danger" ] [ x ]
             , button [ onClick AddToSet, class "button" ] [ text "Add to Set" ]
             ]
 
