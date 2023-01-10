@@ -182,7 +182,7 @@ toString formula =
 
 toStringHelp : String -> Formula -> Formula -> Formula -> String
 toStringHelp symbol formula lForm rForm =
-    (if precedence formula >= precedence lForm || (precedence formula == precedence lForm && (not <| topOperaterIsEqual formula lForm)) then
+    (if precedence formula > precedence lForm || (precedence formula == precedence lForm && (not <| topOperaterIsEqual formula lForm && operatorIsCommutative formula)) then
         "(" ++ toString lForm ++ ")"
 
      else
@@ -191,7 +191,7 @@ toStringHelp symbol formula lForm rForm =
         ++ " "
         ++ symbol
         ++ " "
-        ++ (if precedence formula > precedence rForm || (precedence formula == precedence lForm && (not <| topOperaterIsEqual formula rForm)) then
+        ++ (if precedence formula > precedence rForm || (precedence formula == precedence rForm && (not <| topOperaterIsEqual formula rForm)) then
                 "(" ++ toString rForm ++ ")"
 
             else
@@ -218,6 +218,22 @@ topOperaterIsEqual formula1 formula2 =
             Basics.True
 
         ( Neg _, Neg _ ) ->
+            Basics.True
+
+        _ ->
+            Basics.False
+
+
+operatorIsCommutative : Formula -> Basics.Bool
+operatorIsCommutative formula =
+    case formula of
+        And _ _ ->
+            Basics.True
+
+        Or _ _ ->
+            Basics.True
+
+        Xor _ _ ->
             Basics.True
 
         _ ->
