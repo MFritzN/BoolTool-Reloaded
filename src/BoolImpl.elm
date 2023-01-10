@@ -182,7 +182,7 @@ toString formula =
 
 toStringHelp : String -> Formula -> Formula -> Formula -> String
 toStringHelp symbol formula lForm rForm =
-    (if precedence formula > precedence lForm || (precedence formula == precedence lForm && (not <| topOperaterIsEqual formula lForm && operatorIsCommutative formula)) then
+    (if precedence formula > precedence lForm || (precedence formula == precedence lForm && (not <| topOperaterIsEqual formula lForm && operatorIsAssociative formula)) then
         "(" ++ toString lForm ++ ")"
 
      else
@@ -224,8 +224,8 @@ topOperaterIsEqual formula1 formula2 =
             Basics.False
 
 
-operatorIsCommutative : Formula -> Basics.Bool
-operatorIsCommutative formula =
+operatorIsAssociative : Formula -> Basics.Bool
+operatorIsAssociative formula =
     case formula of
         And _ _ ->
             Basics.True
