@@ -182,7 +182,7 @@ toString formula =
 
 toStringHelp : String -> Formula -> Formula -> Formula -> String
 toStringHelp symbol formula lForm rForm =
-    (if precedence formula >= precedence lForm then
+    (if precedence formula >= precedence lForm || (precedence formula == precedence lForm && (not <| topOperaterIsEqual formula lForm)) then
         "(" ++ toString lForm ++ ")"
 
      else
@@ -191,12 +191,37 @@ toStringHelp symbol formula lForm rForm =
         ++ " "
         ++ symbol
         ++ " "
-        ++ (if precedence formula > precedence rForm then
+        ++ (if precedence formula > precedence rForm || (precedence formula == precedence lForm && (not <| topOperaterIsEqual formula rForm)) then
                 "(" ++ toString rForm ++ ")"
 
             else
                 toString rForm
            )
+
+
+topOperaterIsEqual : Formula -> Formula -> Basics.Bool
+topOperaterIsEqual formula1 formula2 =
+    case ( formula1, formula2 ) of
+        ( Var _, Var _ ) ->
+            Basics.True
+
+        ( And _ _, And _ _ ) ->
+            Basics.True
+
+        ( Or _ _, Or _ _ ) ->
+            Basics.True
+
+        ( Xor _ _, Xor _ _ ) ->
+            Basics.True
+
+        ( Impl _ _, Impl _ _ ) ->
+            Basics.True
+
+        ( Neg _, Neg _ ) ->
+            Basics.True
+
+        _ ->
+            Basics.False
 
 
 {-| Replaces some input symbols and latex equivalents with their correpsonding Unicode charackters.
