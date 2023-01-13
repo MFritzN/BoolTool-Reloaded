@@ -161,7 +161,7 @@ view model =
                     class "is-success"
 
                   else
-                    class "is-dangerp"
+                    class "is-danger"
                 , placeholder "Formula Input"
                 , value model.formulaInput
                 , onInput InputChanged
