@@ -3,8 +3,8 @@ module Representations exposing (..)
 import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
-import Html exposing (Html, a, button, div, h4, i, input, label, p, span, table, td, text, th, tr)
-import Html.Attributes exposing (class, placeholder, readonly, style, value)
+import Html exposing (Html, a, button, div, form, h3, h4, h5, header, i, input, label, li, p, span, strong, table, td, text, th, tr, ul)
+import Html.Attributes exposing (attribute, class, href, id, placeholder, readonly, style, value)
 import Html.Events exposing (onClick, onInput)
 import List.Extra
 import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
@@ -20,7 +20,7 @@ import Render.StandardDrawers.Types exposing (Shape(..))
 import Result.Extra
 import Set exposing (Set)
 import Url exposing (Url)
-import ViewHelpers exposing (boolToSymbol)
+import ViewHelpers exposing (boolToSymbol, syntax)
 
 
 
@@ -35,6 +35,7 @@ type alias Model =
     , url : Url
     , variableOrder : List String
     , expandedLaTeX : Set String
+    , showUsage : Basics.Bool
     }
 
 
@@ -54,6 +55,7 @@ initModel urlString key url =
     , url = url
     , variableOrder = getVariableOrder formulaInputParsed
     , expandedLaTeX = Set.empty
+    , showUsage = Basics.False
     }
 
 
@@ -74,6 +76,7 @@ type Msg
     | VariableOrderChanged Int MoveTo
     | LaTeXClicked String
     | Copy String
+    | UsageUpdate
 
 
 type MoveTo
@@ -147,6 +150,9 @@ update msg model =
         Copy toCopy ->
             ( model, Ports.copy toCopy )
 
+        UsageUpdate ->
+            ( { model | showUsage = not model.showUsage }, Cmd.none )
+
 
 
 -- View
@@ -170,27 +176,77 @@ view model =
                 []
             , case model.formulaInputParsed of
                 Ok formula ->
-                    text (toString formula)
+                    p [] [ span [] [ text "Parsed Input: " ], text <| toString formula ]
 
                 Err x ->
                     p [ class "help is-danger" ] [ parserError x model.formulaInput ]
             ]
         , div []
-            (case model.formulaInputParsed of
-                Ok formula ->
-                    [ renderProperties formula
-                    , renderNormalForm "ANF" formula (\f -> listToANF (calculateANF f)) model.expandedLaTeX
-                    , renderNormalForm "NNF" formula calculateNNF model.expandedLaTeX
-                    , renderNormalForm "CNF" formula calculateCNF model.expandedLaTeX
-                    , renderNormalForm "DNF" formula calculateDNF model.expandedLaTeX
-                    , renderTruthTable formula
-                    , renderOBDD formula model.variableOrder
-                    ]
+            (usage model.showUsage
+                :: (case model.formulaInputParsed of
+                        Ok formula ->
+                            [ div [ class "columns" ]
+                                [ div [ class "column" ]
+                                    [ renderProperties formula
+                                    , renderNormalForm "Negation Normal Form" formula calculateNNF model.expandedLaTeX
+                                    ]
+                                , div [ class "column" ]
+                                    [ renderNormalForm "Conjunctive Normal Form" formula calculateCNF model.expandedLaTeX
+                                    , renderNormalForm "Disjunctive Normal Form" formula calculateDNF model.expandedLaTeX
+                                    , renderNormalForm "Algebraic Normal Form" formula (\f -> listToANF (calculateANF f)) model.expandedLaTeX
+                                    ]
+                                ]
+                            , renderOBDD formula model.variableOrder
+                            , renderTruthTable formula
+                            ]
 
-                _ ->
-                    []
+                        _ ->
+                            []
+                   )
             )
         ]
+
+
+usage : Basics.Bool -> Html Msg
+usage showContent =
+    div [ class "card" ]
+        (header [ class "card-header" ]
+            [ p [ class "card-header-title" ] [ text "Usage" ]
+            , button [ class "card-header-icon", onClick UsageUpdate, attribute "aria-label" "more options" ]
+                [ span [ class "icon" ]
+                    [ i
+                        [ class
+                            (if showContent then
+                                "fas fa-angle-up"
+
+                             else
+                                "fas fa-angle-down"
+                            )
+                        , attribute "aria-hidden" "true"
+                        ]
+                        []
+                    ]
+                ]
+            ]
+            :: (if showContent then
+                    [ div [ class "card-content columns" ]
+                        [ div [ class "column content" ]
+                            [ h5 [ class "subtitle" ] [ text "Syntax" ]
+                            , syntax
+                            ]
+                        , div [ class "column content" ]
+                            [ h5 [ class "subtitle" ] [ text "Features" ]
+                            , p [] [ text "To process a formula, enter it in the text field. The representations will automatically be updated." ]
+                            , p [] [ text "You can share your input by copying the URL or using the share button in the top right corner." ]
+                            , p [] [ text "It is possible to export outputs in a LaTeX format by clicking the LaTeX button and copying the text." ]
+                            ]
+                        ]
+                    ]
+
+                else
+                    []
+               )
+        )
 
 
 renderProperties : Formula -> Html Msg
@@ -244,10 +300,9 @@ renderLaTeX formula =
         laTeX =
             prettyPrintToLaTeX formula
     in
-    div [ class "field" ]
-        [ label [ class "label" ] [ text "LaTeX to Copy" ]
-        , input [ value laTeX, class "input copy-input", readonly Basics.True ] []
-        , button [ class "button is-small", onClick <| Copy laTeX ] [ text "copy" ]
+    div [ class "field has-addons" ]
+        [ div [ class "control is-expanded" ] [ input [ value laTeX, class "input copy-input is-small", readonly Basics.True ] [] ]
+        , div [ class "control" ] [ button [ class "button is-small", onClick <| Copy laTeX ] [ i [ class "fa-regular fa-clipboard" ] [] ] ]
         ]
 
 

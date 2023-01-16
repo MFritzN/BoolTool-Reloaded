@@ -4,13 +4,14 @@ import Adequacy
 import BoolImpl exposing (..)
 import Browser
 import Browser.Navigation as Nav
-import Html exposing (Html, a, button, div, h3, nav, text)
+import Html exposing (Html, a, button, div, footer, h3, nav, p, strong, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Ports
 import Representations
 import Url
 import Url.Parser exposing ((</>), Parser, fragment, oneOf, parse, s, top)
+import Html exposing (i)
 
 
 
@@ -182,39 +183,49 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "BoolTool Reloaded"
     , body =
-        [ nav [ class "navbar" ]
-            [ div [ class "navbar-brand" ]
-                [ a [ class "navbar-item", href "/" ]
-                    [ h3 [] [ text "BoolTool Reloaded" ]
+        [ div [class "container"]
+            [ nav [ class "navbar" ]
+                [ div [ class "navbar-brand" ]
+                    [ a [ class "navbar-item", href "/" ]
+                        [ h3 [] [ text "BoolTool Reloaded" ]
+                        ]
+                    ]
+                , div [ class "navbar-menu is-active" ]
+                    [ div [ class "navbar-start" ]
+                        [ a [ class "navbar-item", href "/representations" ]
+                            [ text "Representations"
+                            ]
+                        , a [ class "navbar-item", href "/adequacy" ]
+                            [ text "Adequacy"
+                            ]
+                        ]
+                    , div [ class "navbar-end" ]
+                        [ div [ class "navbar-item" ] [ shareButton ]
+                        ]
                     ]
                 ]
-            , div [ class "navbar-menu is-active" ]
-                [ div [ class "navbar-start" ]
-                    [ a [ class "navbar-item", href "/representations" ]
-                        [ text "Representations"
+            , case model.route of
+                Adequacy _ aModel ->
+                    Html.map (\a -> AdequacyMsg a) (Adequacy.view aModel)
+
+                Representation _ rModel ->
+                    Html.map (\r -> RepresentationMsg r) (Representations.view rModel)
+
+                NotFound _ ->
+                    text "404"
+            , footer [ class "footer" ]
+                [ div [ class "content has-text-centered" ]
+                    [ p []
+                        [ strong [] [ text "BoolTool Reloaded" ]
+                        , text " - For questions contact Fabian Mitterwallner"
                         ]
-                    , a [ class "navbar-item", href "/adequacy" ]
-                        [ text "Adequacy"
-                        ]
-                    ]
-                , div [ class "navbar-end" ]
-                    [ div [ class "navbar-item" ] [ shareButton ]
                     ]
                 ]
             ]
-        , case model.route of
-            Adequacy _ aModel ->
-                Html.map (\a -> AdequacyMsg a) (Adequacy.view aModel)
-
-            Representation _ rModel ->
-                Html.map (\r -> RepresentationMsg r) (Representations.view rModel)
-
-            NotFound _ ->
-                text "404"
         ]
     }
 
 
 shareButton : Html Msg
 shareButton =
-    button [ class "button is-small", onClick Share ] [ text "Share" ]
+    button [ class "button", onClick Share ] [ i [class "fa-solid fa-share-nodes is-primary"] [] ]

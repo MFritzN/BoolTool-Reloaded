@@ -250,10 +250,13 @@ preprocessString string =
     string
         |> String.replace "\\wedge" "∧"
         |> String.replace "&" "∧"
+        |> String.replace "\\land" "∧"
         |> String.replace "\\vee" "∨"
+        |> String.replace "\\lor" "∨"
         |> String.replace "|" "∨"
         |> String.replace "~" "¬"
         |> String.replace "\\neg" "¬"
+        |> String.replace "\\lnot" "¬"
         |> String.replace "!" "¬"
         |> String.replace "^" "⊕"
         |> String.replace "->" "→"
@@ -262,20 +265,20 @@ preprocessString string =
         |> String.replace "\\implies" "→"
         |> String.replace "\\oplus" "⊕"
         |> String.replace "\\top" "⊤"
-        |> String.replace "\\bottom" "⊥"
+        |> String.replace "\\bot" "⊥"
 
 
 reversePreprocessString : String -> String
 reversePreprocessString string =
     string
         |> String.filter (\c -> c /= ' ')
-        |> String.replace "∧" "\\wedge"
-        |> String.replace "∨" "\\vee"
-        |> String.replace "¬" "\\neg"
+        |> String.replace "∧" "\\land"
+        |> String.replace "∨" "\\lor"
+        |> String.replace "¬" "\\lnot"
         |> String.replace "⊕" "\\oplus"
         |> String.replace "→" "\\implies"
         |> String.replace "⊤" "\\top"
-        |> String.replace "⊥" "\\bottom"
+        |> String.replace "⊥" "\\bot"
 
 
 getVariables : Formula -> Set String

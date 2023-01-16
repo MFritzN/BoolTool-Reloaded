@@ -4,7 +4,7 @@ import ANF
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key)
 import Dict exposing (..)
-import Html exposing (Html, button, div, input, p, span, table, td, text, th, tr)
+import Html exposing (Html, button, div, h5, header, i, input, p, span, strong, table, td, text, th, tr)
 import Html.Attributes exposing (..)
 import Html.Events exposing (keyCode, on, onClick, onInput)
 import Json.Decode as Json exposing (string)
@@ -15,7 +15,7 @@ import ParserError exposing (parserError)
 import Result.Extra
 import Set
 import Url exposing (Url)
-import ViewHelpers exposing (boolToSymbol, maybeToSymbol)
+import ViewHelpers exposing (boolToSymbol, maybeToSymbol, syntax)
 
 
 
@@ -33,6 +33,7 @@ type alias Model =
     , setInputParsed : Result (Html Msg) (List Formula)
     , key : Key
     , url : Url
+    , showUsage : Basics.Bool
     }
 
 
@@ -43,6 +44,7 @@ initModel string key url =
     , setInputParsed = parseInputSet (preprocessString string)
     , key = key
     , url = url
+    , showUsage = Basics.False
     }
 
 
@@ -79,6 +81,7 @@ type Msg
     = InputChanged String
     | AddToSet
     | RemoveFromSet Int
+    | UsageUpdate
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -108,9 +111,54 @@ update msg model =
         RemoveFromSet index ->
             ( { model | list = List.Extra.removeAt index model.list }, Cmd.none )
 
+        UsageUpdate ->
+            ( { model | showUsage = not model.showUsage }, Cmd.none )
+
 
 
 -- View
+
+
+usage : Basics.Bool -> Html Msg
+usage showContent =
+    div [ class "card" ]
+        (header [ class "card-header" ]
+            [ p [ class "card-header-title" ] [ text "Usage" ]
+            , button [ class "card-header-icon", onClick UsageUpdate, attribute "aria-label" "more options" ]
+                [ span [ class "icon" ]
+                    [ i
+                        [ class
+                            (if showContent then
+                                "fas fa-angle-up"
+
+                             else
+                                "fas fa-angle-down"
+                            )
+                        , attribute "aria-hidden" "true"
+                        ]
+                        []
+                    ]
+                ]
+            ]
+            :: (if showContent then
+                    [ div [ class "card-content columns" ]
+                        [ div [ class "column content" ]
+                            [ h5 [ class "subtitle" ] [ text "Syntax" ]
+                            , syntax
+                            ]
+                        , div [ class "column content" ]
+                            [ h5 [ class "subtitle" ] [ text "Features" ]
+                            , p [] [ text "To add a function, enter it in the text field. Add it by clicking the button. You can add multiple functions by seperating them with a comma." ]
+                            , p [] [ text "The last row of the table will become green if the set of functions is adequat." ]
+                            , p [] [ text "You can share your input by copying the URL or using the share button in the top right corner." ]
+                            ]
+                        ]
+                    ]
+
+                else
+                    []
+               )
+        )
 
 
 renderFunctionSet : List Formula -> Html Msg
@@ -160,7 +208,15 @@ renderPostConditions list =
                             ]
                     )
                     list
-                ++ [ tr [ class (if isAdequat list then "has-bg-success" else "has-bg-warning") ]
+                ++ [ tr
+                        [ class
+                            (if isAdequat list then
+                                "has-bg-success"
+
+                             else
+                                "has-bg-warning"
+                            )
+                        ]
                         [ td [] [ span [ class "tag" ] [ text "exists" ] ]
                         , td []
                             [ text (boolToSymbol (existsAllInputNotEqInput list Basics.False)) ]
@@ -202,13 +258,12 @@ view model =
                 ]
             , case model.setInputParsed of
                 Ok list ->
-                    text <| functionSetToString list
+                    p [] [ span [] [ text "Parsed Input: " ], text <| functionSetToString list ]
 
                 Err x ->
                     p [ class "help is-danger" ] [ x ]
             ]
-
-        --, renderFunctionSet model.list
+        , usage model.showUsage
         , renderPostConditions model.list
         ]
 
