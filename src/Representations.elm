@@ -155,7 +155,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ div [ class "field" ]
+        [ div [ class "field box" ]
             [ input
                 [ if Result.Extra.isOk model.formulaInputParsed then
                     class "is-success"

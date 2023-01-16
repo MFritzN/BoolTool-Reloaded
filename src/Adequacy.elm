@@ -127,7 +127,7 @@ renderPostConditions list =
     else
         table [ class "table is-narrow box" ]
             (tr []
-                [ th [] [ text "Formula" ]
+                [ th [] [ text "Function" ]
                 , th [] [ text "f (0,...,0) ≠ 0: " ]
                 , th [] [ text "f (1,...,1) ≠ 1: " ]
                 , th [] [ text "not monotone:" ]
@@ -160,7 +160,7 @@ renderPostConditions list =
                             ]
                     )
                     list
-                ++ [ tr [ class "is-selected" ]
+                ++ [ tr [ class (if isAdequat list then "has-bg-success" else "has-bg-warning") ]
                         [ td [] [ span [ class "tag" ] [ text "exists" ] ]
                         , td []
                             [ text (boolToSymbol (existsAllInputNotEqInput list Basics.False)) ]
@@ -181,27 +181,31 @@ renderPostConditions list =
 
 view : Model -> Html Msg
 view model =
-    div [ class "field" ]
+    div []
         [ div [ onEnter AddToSet, class "box" ]
-            [ input
-                [ if Result.Extra.isOk model.setInputParsed then
-                    class ""
+            [ div [ class "field has-addons" ]
+                [ div [ class "control is-expanded" ]
+                    [ input
+                        [ if Result.Extra.isOk model.setInputParsed then
+                            class ""
 
-                  else
-                    class "is-danger"
-                , placeholder "Function Input"
-                , value model.setInput
-                , onInput InputChanged
-                , class "input avoid-cursor-jump"
+                          else
+                            class "is-danger"
+                        , placeholder "Function Input"
+                        , value model.setInput
+                        , onInput InputChanged
+                        , class "input avoid-cursor-jump level"
+                        ]
+                        []
+                    ]
+                , div [ class "control" ] [ button [ onClick AddToSet, class "button" ] [ text "Add to Set" ] ]
                 ]
-                []
             , case model.setInputParsed of
                 Ok list ->
                     text <| functionSetToString list
 
                 Err x ->
                     p [ class "help is-danger" ] [ x ]
-            , button [ onClick AddToSet, class "button" ] [ text "Add to Set" ]
             ]
 
         --, renderFunctionSet model.list

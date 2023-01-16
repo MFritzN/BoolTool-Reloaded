@@ -6,6 +6,16 @@ This tool uses [create-elm-app](https://github.com/halfzebra/create-elm-app) for
 ## Setup
 For compilation, this project requires elm to be installed. See: [Installation Guide](https://guide.elm-lang.org/install/elm.html)
 
+A few node modules are required to run this application. Install them with:
+```
+npm install
+```
+
+Before the first start and after each css alteration, you need to run:
+```
+npm run watch-css
+```
+
 To run a development server run `elm-app start` in the top directory.
 
 To compile the project to browser ready HTML, run: `elm-app build`
