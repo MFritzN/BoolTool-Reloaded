@@ -15,7 +15,7 @@ import ParserError exposing (parserError)
 import Result.Extra
 import Set
 import Url exposing (Url)
-import ViewHelpers exposing (boolToSymbol, maybeToSymbol, syntax)
+import ViewHelpers exposing (boolToSymbol, syntax)
 
 
 
@@ -52,8 +52,15 @@ parseInputSet : String -> Result (Html Msg) (List Formula)
 parseInputSet input =
     input
         |> String.split ","
-        |> List.map (\stringFormula -> ( run formula_p stringFormula, stringFormula ))
-        |> parseInputSetHelp [] 0
+        |> (\list ->
+                if List.any (\string -> String.length string == 0) list then
+                    Err (text "Input contains an empty function")
+
+                else
+                    Ok list
+           )
+        |> (\result -> Result.map (List.map (\stringFormula -> ( run formula_p stringFormula, stringFormula ))) result)
+        |> (\result -> Result.andThen (\list -> parseInputSetHelp [] 0 list) result)
 
 
 parseInputSetHelp : List Formula -> Int -> List ( Result (List (DeadEnd Context Problem)) Formula, String ) -> Result (Html Msg) (List Formula)
@@ -121,7 +128,7 @@ update msg model =
 
 usage : Basics.Bool -> Html Msg
 usage showContent =
-    div [ class "card" ]
+    div [ class "card mb-4" ]
         (header [ class "card-header" ]
             [ p [ class "card-header-title" ] [ text "Usage" ]
             , button [ class "card-header-icon", onClick UsageUpdate, attribute "aria-label" "more options" ]

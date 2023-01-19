@@ -212,7 +212,7 @@ view model =
 
 usage : Basics.Bool -> Html Msg
 usage showContent =
-    div [ class "card" ]
+    div [ class "card mb-4" ]
         (header [ class "card-header" ]
             [ p [ class "card-header-title" ] [ text "Usage" ]
             , button [ class "card-header-icon", onClick UsageUpdate, attribute "aria-label" "more options" ]
