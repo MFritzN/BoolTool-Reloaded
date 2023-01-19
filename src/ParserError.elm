@@ -1,10 +1,14 @@
 module ParserError exposing (..)
 
 import BoolImpl exposing (Context, Problem(..))
-import Html exposing (Html, div, section, span, table, td, text, th, tr)
-import Html.Attributes exposing (align, attribute, class, property)
+import Html exposing (Html, div, section, span, table, td, text, tr)
+import Html.Attributes exposing (class)
 import List
 import Parser.Advanced exposing (DeadEnd)
+
+
+
+-- VIEW
 
 
 parserError : List (DeadEnd Context Problem) -> String -> Html a
@@ -77,6 +81,10 @@ parserError list input =
                         Nothing ->
                             section [] [ text "Invalid Input" ]
                )
+
+
+
+-- OTHER FUNCTIONS
 
 
 addMessageToRecord : DeadEnd Context Problem -> String -> { column : Int, message : String, problem : Problem }

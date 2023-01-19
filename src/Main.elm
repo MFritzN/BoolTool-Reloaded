@@ -4,14 +4,13 @@ import Adequacy
 import BoolImpl exposing (..)
 import Browser
 import Browser.Navigation as Nav
-import Html exposing (Html, a, button, div, footer, h3, nav, p, strong, text)
+import Html exposing (Html, a, button, div, footer, h4, i, nav, p, strong, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Ports
 import Representations
 import Url
 import Url.Parser exposing ((</>), Parser, fragment, oneOf, parse, s, top)
-import Html exposing (i)
 
 
 
@@ -65,32 +64,6 @@ init _ url key =
     )
 
 
-getRoute : Url.Url -> Nav.Key -> ( Route, Cmd Msg )
-getRoute url key =
-    case parse routeParser url of
-        Just (PrimitiveRepresentation Nothing) ->
-            ( Representation "" (Representations.initModel "" key url), Cmd.none )
-
-        Just (PrimitiveRepresentation (Just a)) ->
-            ( Representation a (Representations.initModel a key url), Cmd.none )
-
-        Just (PrimitiveAdequacy Nothing) ->
-            ( Adequacy "" (Adequacy.initModel "" key url), Cmd.none )
-
-        Just (PrimitiveAdequacy (Just a)) ->
-            ( Adequacy a (Adequacy.initModel a key url), Cmd.none )
-
-        Just PrimitiveHome ->
-            let
-                newUrl =
-                    { url | path = "/representations" }
-            in
-            ( Representation "" (Representations.initModel "" key newUrl), Nav.replaceUrl key (Url.toString newUrl) )
-
-        _ ->
-            ( NotFound key, Cmd.none )
-
-
 
 -- UPDATE
 
@@ -101,25 +74,6 @@ type Msg
     | AdequacyMsg Adequacy.Msg
     | RepresentationMsg Representations.Msg
     | Share
-
-
-resultOk : Result a b -> Bool
-resultOk result =
-    case result of
-        Ok _ ->
-            Basics.True
-
-        Err _ ->
-            Basics.False
-
-
-routeParser : Parser (PrimitiveRoute -> a) a
-routeParser =
-    oneOf
-        [ Url.Parser.map PrimitiveHome top
-        , Url.Parser.map PrimitiveAdequacy (s "adequacy" </> fragment identity)
-        , Url.Parser.map PrimitiveRepresentation (s "representations" </> fragment identity)
-        ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -183,11 +137,11 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "BoolTool Reloaded"
     , body =
-        [ div [class "container"]
+        [ div [ class "container" ]
             [ nav [ class "navbar" ]
                 [ div [ class "navbar-brand" ]
                     [ a [ class "navbar-item", href "/" ]
-                        [ h3 [] [ text "BoolTool Reloaded" ]
+                        [ h4 [ class "h4" ] [ strong [] [ text "BoolTool Reloaded" ] ]
                         ]
                     ]
                 , div [ class "navbar-menu is-active" ]
@@ -228,4 +182,53 @@ view model =
 
 shareButton : Html Msg
 shareButton =
-    button [ class "button", onClick Share ] [ i [class "fa-solid fa-share-nodes is-primary"] [] ]
+    button [ class "button", onClick Share ] [ i [ class "fa-solid fa-share-nodes is-primary" ] [] ]
+
+
+
+-- other functions
+
+
+routeParser : Parser (PrimitiveRoute -> a) a
+routeParser =
+    oneOf
+        [ Url.Parser.map PrimitiveHome top
+        , Url.Parser.map PrimitiveAdequacy (s "adequacy" </> fragment identity)
+        , Url.Parser.map PrimitiveRepresentation (s "representations" </> fragment identity)
+        ]
+
+
+getRoute : Url.Url -> Nav.Key -> ( Route, Cmd Msg )
+getRoute url key =
+    case parse routeParser url of
+        Just (PrimitiveRepresentation Nothing) ->
+            ( Representation "" (Representations.initModel "" key url), Cmd.none )
+
+        Just (PrimitiveRepresentation (Just a)) ->
+            ( Representation a (Representations.initModel a key url), Cmd.none )
+
+        Just (PrimitiveAdequacy Nothing) ->
+            ( Adequacy "" (Adequacy.initModel "" key url), Cmd.none )
+
+        Just (PrimitiveAdequacy (Just a)) ->
+            ( Adequacy a (Adequacy.initModel a key url), Cmd.none )
+
+        Just PrimitiveHome ->
+            let
+                newUrl =
+                    { url | path = "/representations" }
+            in
+            ( Representation "" (Representations.initModel "" key newUrl), Nav.replaceUrl key (Url.toString newUrl) )
+
+        _ ->
+            ( NotFound key, Cmd.none )
+
+
+resultOk : Result a b -> Bool
+resultOk result =
+    case result of
+        Ok _ ->
+            Basics.True
+
+        Err _ ->
+            Basics.False

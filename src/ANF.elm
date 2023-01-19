@@ -1,7 +1,7 @@
 module ANF exposing (..)
 
 import BoolImpl exposing (..)
-import Set exposing (toList)
+import Set
 
 
 {-| Implementation of the ANF calculation.

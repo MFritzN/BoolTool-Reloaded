@@ -4,7 +4,7 @@ import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
 import Color
-import Graph exposing (Graph)
+import Graph
 import Html exposing (Html, a, button, div, h4, h5, header, i, input, p, span, table, td, text, th, tr)
 import Html.Attributes exposing (attribute, class, placeholder, readonly, style, value)
 import Html.Events exposing (onClick, onInput)
@@ -26,7 +26,7 @@ import ViewHelpers exposing (boolToSymbol, syntax)
 
 
 
--- Model
+-- MODEL
 
 
 type alias Model =
@@ -61,16 +61,8 @@ initModel urlString key url =
     }
 
 
-getVariableOrder : Result (List (DeadEnd Context Problem)) Formula -> List String
-getVariableOrder formulaInputParsed =
-    formulaInputParsed
-        |> Result.map getVariables
-        |> Result.withDefault Set.empty
-        |> Set.toList
 
-
-
--- Update
+-- UPDATE
 
 
 type Msg
@@ -157,7 +149,7 @@ update msg model =
 
 
 
--- View
+-- VIEW
 
 
 view : Model -> Html Msg
@@ -391,11 +383,6 @@ renderOBDD formula variableOrder isMobile =
         ]
 
 
-
--- TruthTable
--- View
-
-
 renderTruthTable : Formula -> Html Msg
 renderTruthTable formula =
     let
@@ -421,10 +408,6 @@ prettyPrintBool bool =
         text "F"
 
 
-
--- NNF
-
-
 renderNNF : Formula -> Html Msg
 renderNNF formula =
     let
@@ -435,10 +418,6 @@ renderNNF formula =
         [ h4 [] [ text "NNF" ]
         , text (toString nnf)
         ]
-
-
-
--- CNF
 
 
 renderCNF : Formula -> Html Msg
@@ -453,10 +432,6 @@ renderCNF formula =
         ]
 
 
-
--- DNF
-
-
 renderDNF : Formula -> Html Msg
 renderDNF formula =
     let
@@ -467,3 +442,15 @@ renderDNF formula =
         [ h4 [] [ text "DNF" ]
         , text (toString dnf)
         ]
+
+
+
+-- OTHER FUNCTIONS
+
+
+getVariableOrder : Result (List (DeadEnd Context Problem)) Formula -> List String
+getVariableOrder formulaInputParsed =
+    formulaInputParsed
+        |> Result.map getVariables
+        |> Result.withDefault Set.empty
+        |> Set.toList
