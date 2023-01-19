@@ -3,11 +3,13 @@ module Representations exposing (..)
 import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
-import Html exposing (Html, a, button, div, form, h3, h4, h5, header, i, input, label, li, p, span, strong, table, td, text, th, tr, ul)
-import Html.Attributes exposing (attribute, class, href, id, placeholder, readonly, style, value)
+import Color
+import Graph exposing (Graph)
+import Html exposing (Html, a, button, div, h4, h5, header, i, input, p, span, table, td, text, th, tr)
+import Html.Attributes exposing (attribute, class, placeholder, readonly, style, value)
 import Html.Events exposing (onClick, onInput)
 import List.Extra
-import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
+import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF)
 import OBDD exposing (computeOBDD)
 import Parser.Advanced exposing (DeadEnd, run)
 import ParserError exposing (parserError)
@@ -196,7 +198,8 @@ view model =
                                     , renderNormalForm "Algebraic Normal Form" formula (\f -> listToANF (calculateANF f)) model.expandedLaTeX
                                     ]
                                 ]
-                            , renderOBDD formula model.variableOrder
+                            , div [ class "is-hidden-mobile" ] [ renderOBDD formula model.variableOrder Basics.False ]
+                            , div [ class "is-hidden-tablet" ] [ renderOBDD formula model.variableOrder Basics.True ]
                             , renderTruthTable formula
                             ]
 
@@ -318,8 +321,12 @@ renderANF formula =
         ]
 
 
-renderOBDD : Formula -> List String -> Html Msg
-renderOBDD formula variableOrder =
+renderOBDD : Formula -> List String -> Basics.Bool -> Html Msg
+renderOBDD formula variableOrder isMobile =
+    let
+        graph =
+            computeOBDD formula variableOrder
+    in
     div [ class "box content" ]
         [ h4 [] [ text "OBDD" ]
         , div [ class "field is-grouped is-grouped-multiline" ]
@@ -348,6 +355,11 @@ renderOBDD formula variableOrder =
                             else
                                 Circle
                         )
+                    , RSDA.fill
+                        (\_ ->
+                            Color.rgb255 105 188 252
+                        )
+                    , RSDA.strokeColor (\_ -> Color.rgb255 74 74 74)
                     ]
                 )
             , R.edgeDrawer
@@ -360,11 +372,22 @@ renderOBDD formula variableOrder =
                             else
                                 "2.5"
                         )
+                    , RSDA.strokeColor (\_ -> Color.rgb255 74 74 74)
                     ]
                 )
-            , R.style "height: 50vh;"
+
+            -- Calculate width depending on the amount of nodes and the display size
+            , R.style <|
+                "width: "
+                    ++ (if isMobile then
+                            String.fromInt <| Basics.min 100 <| Basics.max 40 <| 10 * (Set.size <| Set.fromList <| List.map (\node -> node.label) <| Graph.nodes graph)
+
+                        else
+                            String.fromInt <| Basics.min 80 <| Basics.max 20 <| 5 * (Set.size <| Set.fromList <| List.map (\node -> node.label) <| Graph.nodes graph)
+                       )
+                    ++ "%; max-height: 95vh; margin-left: auto; margin-right: auto; display: block"
             ]
-            (computeOBDD formula variableOrder)
+            graph
         ]
 
 
@@ -412,53 +435,6 @@ renderNNF formula =
         [ h4 [] [ text "NNF" ]
         , text (toString nnf)
         ]
-
-
-{-| Replaces Implications (Impl) and Exclusive Ors (Xor) by equal statements using And, Or and Neg.
-This is needed as a preprocessing step for `calculateNNF`.
--}
-replaceImplXor : Formula -> Formula
-replaceImplXor formula =
-    case formula of
-        Neg a ->
-            Neg (replaceImplXor a)
-
-        And a b ->
-            And (replaceImplXor a) (replaceImplXor b)
-
-        Or a b ->
-            Or (replaceImplXor a) (replaceImplXor b)
-
-        Impl a b ->
-            Or (Neg (replaceImplXor a)) (replaceImplXor b)
-
-        Xor a b ->
-            replaceImplXor (Or (And a (Neg b)) (And (Neg a) b))
-
-        a ->
-            a
-
-
-calculateNNF : Formula -> Formula
-calculateNNF formula =
-    case replaceImplXor formula of
-        Neg (Neg a) ->
-            calculateNNF a
-
-        Neg (And a b) ->
-            Or (calculateNNF (Neg a)) (calculateNNF (Neg b))
-
-        Neg (Or a b) ->
-            And (calculateNNF (Neg a)) (calculateNNF (Neg b))
-
-        And a b ->
-            And (calculateNNF a) (calculateNNF b)
-
-        Or a b ->
-            Or (calculateNNF a) (calculateNNF b)
-
-        a ->
-            a
 
 
 
