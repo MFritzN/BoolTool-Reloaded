@@ -108,9 +108,8 @@ renderOBDD formula variableOrder isMobile =
         graph =
             computeOBDD formula variableOrder
     in
-    div [ class "box content" ]
-        [ h4 [] [ text "OBDD" ]
-        , div [ class "field is-grouped is-grouped-multiline" ]
+    div []
+        [ div [ class "field is-grouped is-grouped-multiline" ]
             (List.indexedMap
                 (\index variable ->
                     div [ class "control" ]
