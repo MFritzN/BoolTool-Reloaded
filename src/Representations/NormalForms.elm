@@ -36,13 +36,13 @@ renderNormalForm normalForm formula expandedLaTeX =
                     { title = "Negation Normal Form", normaForm = calculateNNF formula }
 
                 CNF ->
-                    { title = "Negation Normal Form", normaForm = calculateCNF formula }
+                    { title = "Conjunction Normal Form", normaForm = calculateCNF formula }
 
                 DNF ->
-                    { title = "Negation Normal Form", normaForm = calculateDNF formula }
+                    { title = "Disjunction Normal Form", normaForm = calculateDNF formula }
 
                 ANF ->
-                    { title = "Negation Normal Form", normaForm = ANF.listToANF <| calculateANF formula }
+                    { title = "Algebaric Normal Form", normaForm = ANF.listToANF <| calculateANF formula }
     in
     { title = caseResult.title
     , render =
