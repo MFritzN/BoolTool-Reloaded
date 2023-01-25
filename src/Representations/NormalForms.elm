@@ -1,9 +1,79 @@
-module NormalForms exposing (..)
+module Representations.NormalForms exposing (..)
 
 {-| This module contains the implementations for calculating NNFs, CNFs and DNFs. The ANF computation happens in the [`ANF`](ANF) module.
 -}
 
 import BoolImpl exposing (..)
+import Html exposing (Html, button, div, h4, i, input, text)
+import Html.Attributes exposing (class, readonly, style, value)
+import Html.Events exposing (onClick)
+import Representations.ANF as ANF exposing (calculateANF)
+import Set exposing (Set)
+
+
+type Msg
+    = LaTeXClicked NormalForm
+    | Copy String
+
+
+type NormalForm
+    = NNF
+    | CNF
+    | DNF
+    | ANF
+
+
+
+-- VIEW
+
+
+renderNormalForm : NormalForm -> Formula -> Maybe NormalForm -> { title : String, render : Html Msg }
+renderNormalForm normalForm formula expandedLaTeX =
+    let
+        caseResult =
+            case normalForm of
+                NNF ->
+                    { title = "Negation Normal Form", normaForm = calculateNNF formula }
+
+                CNF ->
+                    { title = "Negation Normal Form", normaForm = calculateCNF formula }
+
+                DNF ->
+                    { title = "Negation Normal Form", normaForm = calculateDNF formula }
+
+                ANF ->
+                    { title = "Negation Normal Form", normaForm = ANF.listToANF <| calculateANF formula }
+    in
+    { title = caseResult.title
+    , render =
+        div []
+            ([ text <| toString caseResult.normaForm
+             , button [ onClick <| LaTeXClicked normalForm, class "button is-small", style "float" "right" ] [ text "LaTeX" ]
+             ]
+                ++ (if expandedLaTeX == Just normalForm then
+                        [ renderLaTeX <| toString caseResult.normaForm ]
+
+                    else
+                        []
+                   )
+            )
+    }
+
+
+renderLaTeX : String -> Html Msg
+renderLaTeX formula =
+    let
+        laTeX =
+            prettyPrintToLaTeX formula
+    in
+    div [ class "field has-addons" ]
+        [ div [ class "control is-expanded" ] [ input [ value laTeX, class "input copy-input is-small", readonly Basics.True ] [] ]
+        , div [ class "control" ] [ button [ class "button is-small", onClick <| Copy laTeX ] [ i [ class "fa-regular fa-clipboard" ] [] ] ]
+        ]
+
+
+
+-- OTHER FUNCTIONS
 
 
 calculateCNF : Formula -> Formula

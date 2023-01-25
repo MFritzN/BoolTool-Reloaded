@@ -1,6 +1,5 @@
 module Adequacy exposing (..)
 
-import ANF
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key)
 import Dict exposing (..)
@@ -12,6 +11,7 @@ import List.Extra
 import Maybe
 import Parser.Advanced exposing (DeadEnd, run, variable)
 import ParserError exposing (parserError)
+import Representations.ANF as ANF
 import Result.Extra
 import Set
 import Url exposing (Url)
@@ -44,7 +44,7 @@ initModel string key url =
 
 
 
--- Update
+-- UPDATE
 
 
 type Msg
@@ -86,7 +86,7 @@ update msg model =
 
 
 
--- View
+-- VIEW
 
 
 view : Model -> Html Msg
@@ -273,7 +273,7 @@ functionSetToString list =
 
 
 
--- Adequacy Logic
+-- OTHER FUNCTIONS / Adequacy Logic
 
 
 {-| Check if any of the boolean functions does not result in x for all inputs x: ∃formula ∈ List such that f (x,...,x) ≠ x

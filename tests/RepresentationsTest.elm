@@ -1,12 +1,12 @@
 module RepresentationsTest exposing (..)
 
-import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Dict exposing (Dict)
 import Expect
-import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF)
 import Parser exposing (variable)
-import Properties exposing (calculateTruthTable)
+import Representations.ANF exposing (calculateANF, listToANF)
+import Representations.NormalForms exposing (calculateCNF, calculateDNF, calculateNNF)
+import Representations.TruthTable exposing (calculateTruthTable)
 import Test exposing (Test, describe, test)
 import TestHelp exposing (testFormulas)
 

@@ -1,28 +1,23 @@
 module Representations exposing (..)
 
-import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
-import Color
-import Graph
 import Html exposing (Html, a, button, div, h4, h5, header, i, input, p, span, table, td, text, th, tr)
 import Html.Attributes exposing (attribute, class, placeholder, readonly, style, value)
 import Html.Events exposing (onClick, onInput)
-import List.Extra
-import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF)
-import OBDD exposing (computeOBDD)
 import Parser.Advanced exposing (DeadEnd, run)
 import ParserError exposing (parserError)
 import Ports
-import Properties exposing (calculateProperties, calculateTruthTable)
-import Render as R
-import Render.StandardDrawers as RSD
-import Render.StandardDrawers.Attributes as RSDA
 import Render.StandardDrawers.Types exposing (Shape(..))
+import Representations.ANF exposing (calculateANF, listToANF)
+import Representations.NormalForms as NormalForms exposing (NormalForm(..))
+import Representations.OBDD as OBDD
+import Representations.Properties as Properties
+import Representations.TruthTable as TruthTable
 import Result.Extra
 import Set exposing (Set)
 import Url exposing (Url)
-import ViewHelpers exposing (boolToSymbol, syntax)
+import ViewHelpers exposing (boolToSymbol, renderBox, syntax)
 
 
 
@@ -35,9 +30,9 @@ type alias Model =
     , formulaInputParsed : Result (List (DeadEnd Context Problem)) Formula
     , key : Key
     , url : Url
-    , variableOrder : List String
-    , expandedLaTeX : Set String
+    , expandedLaTeX : Maybe NormalForms.NormalForm
     , showUsage : Basics.Bool
+    , obdd : OBDD.Model (List (DeadEnd Context Problem))
     }
 
 
@@ -55,9 +50,9 @@ initModel urlString key url =
     , formulaInputParsed = formulaInputParsed
     , key = key
     , url = url
-    , variableOrder = getVariableOrder formulaInputParsed
-    , expandedLaTeX = Set.empty
+    , expandedLaTeX = Nothing
     , showUsage = Basics.False
+    , obdd = OBDD.initModel formulaInputParsed
     }
 
 
@@ -67,15 +62,10 @@ initModel urlString key url =
 
 type Msg
     = InputChanged String
-    | VariableOrderChanged Int MoveTo
-    | LaTeXClicked String
+    | NormalFormsMSG NormalForms.Msg
     | Copy String
     | UsageUpdate
-
-
-type MoveTo
-    = Front
-    | Back
+    | OBDDMsg OBDD.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -95,57 +85,31 @@ update msg model =
                 newUrl =
                     { oldUrl | fragment = Just (reversePreprocessString preprocessedInput) }
             in
-            ( { model | formulaInput = preprocessedInput, formulaInputParsed = formulaInputParsed, url = newUrl, variableOrder = getVariableOrder formulaInputParsed }, replaceUrl model.key (Url.toString newUrl) )
+            ( { model | formulaInput = preprocessedInput, formulaInputParsed = formulaInputParsed, url = newUrl, obdd = OBDD.initModel formulaInputParsed }, replaceUrl model.key (Url.toString newUrl) )
 
-        VariableOrderChanged index direction ->
-            let
-                varibaleToMove =
-                    List.Extra.getAt index model.variableOrder
-
-                maybeVariableOrder =
-                    List.map Just model.variableOrder
-            in
+        NormalFormsMSG (NormalForms.LaTeXClicked normalForm) ->
             ( { model
-                | variableOrder =
-                    (case direction of
-                        Front ->
-                            List.Extra.updateAt index (\_ -> List.Extra.getAt (index + 1) model.variableOrder) maybeVariableOrder
-                                |> List.Extra.updateAt (index + 1) (\_ -> varibaleToMove)
-                                |> List.filterMap identity
+                | expandedLaTeX =
+                    if model.expandedLaTeX == Just normalForm then
+                        Nothing
 
-                        Back ->
-                            List.Extra.updateAt index (\_ -> List.Extra.getAt (index - 1) model.variableOrder) maybeVariableOrder
-                                |> List.Extra.updateAt (index - 1) (\_ -> varibaleToMove)
-                                |> List.filterMap identity
-                    )
-                        |> (\result ->
-                                if List.length result /= List.length model.variableOrder then
-                                    -- If some List.Extra calls were out of reach, the old list is kept. This code should not be reachable.
-                                    model.variableOrder
-
-                                else
-                                    result
-                           )
+                    else
+                        Just normalForm
               }
             , Cmd.none
             )
 
-        LaTeXClicked title ->
-            let
-                newSet =
-                    if Set.member title model.expandedLaTeX then
-                        Set.remove title model.expandedLaTeX
-
-                    else
-                        Set.insert title model.expandedLaTeX
-            in
-            ( { model | expandedLaTeX = newSet }, Cmd.none )
+        NormalFormsMSG (NormalForms.Copy toCopy) ->
+            ( model, Ports.copy toCopy )
 
         Copy toCopy ->
             ( model, Ports.copy toCopy )
 
         UsageUpdate ->
             ( { model | showUsage = not model.showUsage }, Cmd.none )
+
+        OBDDMsg obddMsg ->
+            ( { model | obdd = Tuple.first (OBDD.update obddMsg model.obdd) }, Cmd.map (\o -> OBDDMsg o) <| Tuple.second <| OBDD.update obddMsg model.obdd )
 
 
 
@@ -177,27 +141,7 @@ view model =
             ]
         , div []
             (usage model.showUsage
-                :: (case model.formulaInputParsed of
-                        Ok formula ->
-                            [ div [ class "columns" ]
-                                [ div [ class "column" ]
-                                    [ renderProperties formula
-                                    , renderNormalForm "Negation Normal Form" formula calculateNNF model.expandedLaTeX
-                                    ]
-                                , div [ class "column" ]
-                                    [ renderNormalForm "Conjunctive Normal Form" formula calculateCNF model.expandedLaTeX
-                                    , renderNormalForm "Disjunctive Normal Form" formula calculateDNF model.expandedLaTeX
-                                    , renderNormalForm "Algebraic Normal Form" formula (\f -> listToANF (calculateANF f)) model.expandedLaTeX
-                                    ]
-                                ]
-                            , div [ class "is-hidden-mobile" ] [ renderOBDD formula model.variableOrder Basics.False ]
-                            , div [ class "is-hidden-tablet" ] [ renderOBDD formula model.variableOrder Basics.True ]
-                            , renderTruthTable formula
-                            ]
-
-                        _ ->
-                            []
-                   )
+                :: renderRepresentations model
             )
         ]
 
@@ -244,204 +188,32 @@ usage showContent =
         )
 
 
-renderProperties : Formula -> Html Msg
-renderProperties formula =
-    let
-        properties =
-            calculateProperties formula
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "Properties" ]
-        , table []
-            [ tr []
-                [ td [] [ text "Tautology" ]
-                , td [] [ text (boolToSymbol properties.tautology) ]
+renderRepresentations : Model -> List (Html Msg)
+renderRepresentations model =
+    case model.formulaInputParsed of
+        Ok formula ->
+            [ div [ class "columns" ]
+                [ div [ class "column" ]
+                    [ renderBox <| Properties.renderProperties formula
+                    , renderBox <| mapNormalForm <| NormalForms.renderNormalForm NNF formula model.expandedLaTeX
+                    ]
+                , div [ class "column" ]
+                    [ renderBox <| mapNormalForm <| NormalForms.renderNormalForm CNF formula model.expandedLaTeX
+                    , renderBox <| mapNormalForm <| NormalForms.renderNormalForm DNF formula model.expandedLaTeX
+                    , renderBox <| mapNormalForm <| NormalForms.renderNormalForm ANF formula model.expandedLaTeX
+                    ]
                 ]
-            , tr []
-                [ td [] [ text "Satisfiable" ]
-                , td [] [ text (boolToSymbol properties.satisfiable) ]
-                ]
-            , tr []
-                [ td [] [ text "Contradiction" ]
-                , td [] [ text (boolToSymbol properties.contradiction) ]
-                ]
+            , Html.map (\o -> OBDDMsg o) (renderBox (OBDD.view model.obdd))
+            , renderBox <| TruthTable.renderTruthTable formula
             ]
-        ]
 
-
-renderNormalForm : String -> Formula -> (Formula -> Formula) -> Set String -> Html Msg
-renderNormalForm title formula calculateNormalForm expandedLaTeX =
-    let
-        normalForm =
-            calculateNormalForm formula
-    in
-    div [ class "box content" ]
-        ([ h4 [] [ text title ]
-         , text <| toString normalForm
-         , button [ onClick <| LaTeXClicked title, class "button is-small", style "float" "right" ] [ text "LaTeX" ]
-         ]
-            ++ (if Set.member title expandedLaTeX then
-                    [ renderLaTeX <| toString normalForm ]
-
-                else
-                    []
-               )
-        )
-
-
-renderLaTeX : String -> Html Msg
-renderLaTeX formula =
-    let
-        laTeX =
-            prettyPrintToLaTeX formula
-    in
-    div [ class "field has-addons" ]
-        [ div [ class "control is-expanded" ] [ input [ value laTeX, class "input copy-input is-small", readonly Basics.True ] [] ]
-        , div [ class "control" ] [ button [ class "button is-small", onClick <| Copy laTeX ] [ i [ class "fa-regular fa-clipboard" ] [] ] ]
-        ]
-
-
-renderANF : Formula -> Html Msg
-renderANF formula =
-    let
-        anf =
-            calculateANF formula
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "ANF" ]
-        , text (toString (listToANF anf))
-        ]
-
-
-renderOBDD : Formula -> List String -> Basics.Bool -> Html Msg
-renderOBDD formula variableOrder isMobile =
-    let
-        graph =
-            computeOBDD formula variableOrder
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "OBDD" ]
-        , div [ class "field is-grouped is-grouped-multiline" ]
-            (List.indexedMap
-                (\index variable ->
-                    div [ class "control" ]
-                        [ div [ class "tags has-addons" ]
-                            [ span [ class "tag icon", style "cursor" "pointer", onClick (VariableOrderChanged index Back) ] [ i [ class "fas fa-solid fa-caret-left" ] [] ]
-                            , span [ class "tag" ] [ text variable ]
-                            , span [ class "tag icon", style "cursor" "pointer", onClick (VariableOrderChanged index Front) ] [ i [ class "fas fa-solid fa-caret-right" ] [] ]
-                            ]
-                        ]
-                )
-                variableOrder
-            )
-        , R.draw
+        _ ->
             []
-            [ R.nodeDrawer
-                (RSD.svgDrawNode
-                    [ RSDA.label (\a -> a.label)
-                    , RSDA.shape
-                        (\a ->
-                            if a.id <= 1 then
-                                Box
-
-                            else
-                                Circle
-                        )
-                    , RSDA.fill
-                        (\_ ->
-                            Color.rgb255 105 188 252
-                        )
-                    , RSDA.strokeColor (\_ -> Color.rgb255 74 74 74)
-                    ]
-                )
-            , R.edgeDrawer
-                (RSD.svgDrawEdge
-                    [ RSDA.strokeDashArray
-                        (\a ->
-                            if a.label then
-                                "0"
-
-                            else
-                                "2.5"
-                        )
-                    , RSDA.strokeColor (\_ -> Color.rgb255 74 74 74)
-                    ]
-                )
-
-            -- Calculate width depending on the amount of nodes and the display size
-            , R.style <|
-                "width: "
-                    ++ (if isMobile then
-                            String.fromInt <| Basics.min 100 <| Basics.max 40 <| 10 * (Set.size <| Set.fromList <| List.map (\node -> node.label) <| Graph.nodes graph)
-
-                        else
-                            String.fromInt <| Basics.min 80 <| Basics.max 20 <| 5 * (Set.size <| Set.fromList <| List.map (\node -> node.label) <| Graph.nodes graph)
-                       )
-                    ++ "%; max-height: 95vh; margin-left: auto; margin-right: auto; display: block"
-            ]
-            graph
-        ]
 
 
-renderTruthTable : Formula -> Html Msg
-renderTruthTable formula =
-    let
-        truthTable =
-            calculateTruthTable formula
-    in
-    div [ class "content box" ]
-        [ h4 [] [ text "Truth Table" ]
-        , table [ class "table is-narrow is-striped is-hoverable is-bordered" ]
-            (tr [] (List.map (\variable -> th [] [ text variable ]) truthTable.vars ++ [ th [] [ text "Result" ] ])
-                :: List.map (\row -> tr [] (List.map (\value -> td [] [ prettyPrintBool value ]) (Tuple.first row) ++ [ td [] [ prettyPrintBool (Tuple.second row) ] ]))
-                    truthTable.results
-            )
-        ]
-
-
-prettyPrintBool : Basics.Bool -> Html Msg
-prettyPrintBool bool =
-    if bool then
-        text "T"
-
-    else
-        text "F"
-
-
-renderNNF : Formula -> Html Msg
-renderNNF formula =
-    let
-        nnf =
-            calculateNNF formula
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "NNF" ]
-        , text (toString nnf)
-        ]
-
-
-renderCNF : Formula -> Html Msg
-renderCNF formula =
-    let
-        cnf =
-            calculateCNF formula
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "CNF" ]
-        , text (toString cnf)
-        ]
-
-
-renderDNF : Formula -> Html Msg
-renderDNF formula =
-    let
-        dnf =
-            calculateDNF formula
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "DNF" ]
-        , text (toString dnf)
-        ]
+mapNormalForm : { title : String, render : Html NormalForms.Msg } -> { title : String, render : Html Msg }
+mapNormalForm input =
+    { title = input.title, render = Html.map (\n -> NormalFormsMSG n) input.render }
 
 
 

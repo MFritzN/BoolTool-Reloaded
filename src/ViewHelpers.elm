@@ -1,6 +1,7 @@
 module ViewHelpers exposing (..)
 
-import Html exposing (Html, div, li, p, strong, text, ul)
+import Html exposing (Html, div, h4, li, p, strong, text, ul)
+import Html.Attributes exposing (class)
 
 
 boolToSymbol : Basics.Bool -> String
@@ -44,4 +45,12 @@ syntax =
                 [ strong [] [ text "Binding Precedence:" ], text " ¬ > ∧, ∨ > ⊕ > →" ]
             , li [] [ text "→, ⊕, ∧, ∨ are ", strong [] [ text "right-associative" ] ]
             ]
+        ]
+
+
+renderBox : { title : String, render : Html a } -> Html a
+renderBox input =
+    div [ class "box content" ]
+        [ h4 [] [ text input.title ]
+        , input.render
         ]
