@@ -1,7 +1,7 @@
 module ViewHelpers exposing (..)
 
-import Html exposing (Html, div, h4, li, p, strong, text, ul)
-import Html.Attributes exposing (class)
+import Html exposing (Html, div, h4, li, p, span, strong, text, ul)
+import Html.Attributes exposing (attribute, class)
 
 
 boolToSymbol : Basics.Bool -> String
@@ -54,3 +54,8 @@ renderBox input =
         [ h4 [] [ text input.title ]
         , input.render
         ]
+
+
+renderTooltip : Html a -> String -> Html a
+renderTooltip content tooltip =
+    span [ attribute "data-tooltip" tooltip ] [ content ]

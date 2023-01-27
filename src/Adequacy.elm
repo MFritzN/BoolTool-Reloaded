@@ -1,5 +1,8 @@
 module Adequacy exposing (..)
 
+import Adequacy.Affinity exposing (existsIsNotAffine, isNotAffine)
+import Adequacy.Dualness exposing (exsistsIsNotSelfDual, renderSelfDualness)
+import Adequacy.Monotonicity exposing (exsistsIsNotMonotone, renderMonotone)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key)
 import Dict exposing (..)
@@ -8,7 +11,6 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (keyCode, on, onClick, onInput)
 import Json.Decode as Json exposing (string)
 import List.Extra
-import Maybe
 import Parser.Advanced exposing (DeadEnd, run, variable)
 import ParserError exposing (parserError)
 import Representations.ANF as ANF
@@ -197,13 +199,7 @@ renderPostConditions list =
                             , td []
                                 [ renderMonotone formula ]
                             , td []
-                                [ case isNotSelfDual formula of
-                                    Just foundFormula ->
-                                        span [ attribute "data-tooltip" (notSelfDualTooltip foundFormula) ] [ text "✓" ]
-
-                                    Nothing ->
-                                        text "✕"
-                                ]
+                                [ renderSelfDualness formula ]
                             , td []
                                 [ span [ attribute "data-tooltip" ("ANF: " ++ (toString <| ANF.listToANF <| ANF.calculateANF formula)) ] [ text (boolToSymbol (isNotAffine formula)) ] ]
                             , td []
@@ -238,16 +234,6 @@ renderPostConditions list =
             )
 
 
-renderMonotone : Formula -> Html msg
-renderMonotone formula =
-    case isNotMontone formula of
-        Nothing ->
-            text <| boolToSymbol Basics.False
-
-        Just vars ->
-            span [ attribute "data-tooltip" ((String.dropRight 2 <| List.foldl (\var str -> str ++ var ++ ", ") "f (" vars) ++ ") = x̄") ] [ text <| boolToSymbol Basics.True ]
-
-
 onEnter : Msg -> Html.Attribute Msg
 onEnter msg =
     let
@@ -261,159 +247,10 @@ onEnter msg =
     on "keydown" (Json.andThen isEnter keyCode)
 
 
-notSelfDualTooltip : Dict String Bool -> String
-notSelfDualTooltip vars =
-    varsToString vars ++ " = " ++ varsToString (Dict.map (\_ v -> not v) vars)
-
-
 functionSetToString : List Formula -> String
 functionSetToString list =
     List.foldl (\formula string -> string ++ ", " ++ toString formula) "" list
         |> String.dropLeft 2
-
-
-
--- OTHER FUNCTIONS / Adequacy Logic
-
-
-{-| Check if any of the boolean functions does not result in x for all inputs x: ∃formula ∈ List such that f (x,...,x) ≠ x
-
-    existsAllInputNotEqInput [a & b] True = (True && True /= True) = False
-
--}
-existsAllInputNotEqInput : List Formula -> Basics.Bool -> Basics.Bool
-existsAllInputNotEqInput list x =
-    List.any (\formula -> allInputNotEqInput formula x) list
-
-
-{-| Check if a boolean function does not result in x for all inputs x: f (x,...,x) ≠ x
-
-    allInputNotEqInput (a & b) True = (True && True /= True) = False
-
--}
-allInputNotEqInput : Formula -> Basics.Bool -> Basics.Bool
-allInputNotEqInput formula x =
-    evaluateUnsafe formula (Dict.fromList (List.map (\variable -> ( variable, x )) (Set.toList (getVariables formula)))) /= x
-
-
-
--- is not montone
-
-
-exsistsIsNotMonotone : List Formula -> Basics.Bool
-exsistsIsNotMonotone list =
-    List.any
-        (\el ->
-            case isNotMontone el of
-                Just _ ->
-                    Basics.True
-
-                Nothing ->
-                    Basics.False
-        )
-        list
-
-
-isNotMontone : Formula -> Maybe (List String)
-isNotMontone formula =
-    let
-        variables =
-            Dict.fromList (List.map (\variable -> ( variable, Basics.False )) (Set.toList (getVariables formula)))
-    in
-    isNotMonotoneHelp formula variables (Dict.keys variables)
-
-
-isNotMonotoneHelp : Formula -> Dict String Bool -> List String -> Maybe (List String)
-isNotMonotoneHelp formula variables remainingVariables =
-    case remainingVariables of
-        [] ->
-            iterateVariables variables
-                |> Maybe.andThen (\newVariables -> isNotMonotoneHelp formula newVariables (Dict.keys newVariables))
-
-        currentVar :: remainingVariablesTail ->
-            if not (BoolImpl.evaluateUnsafe formula (Dict.insert currentVar Basics.True variables)) && BoolImpl.evaluateUnsafe formula (Dict.insert currentVar Basics.False variables) then
-                variables
-                    |> Dict.map
-                        (\_ v ->
-                            if v then
-                                "1"
-
-                            else
-                                "0"
-                        )
-                    |> Dict.insert currentVar "x"
-                    |> Dict.values
-                    |> Just
-
-            else
-                isNotMonotoneHelp formula variables remainingVariablesTail
-
-
-
--- is not self-dual
-
-
-exsistsIsNotSelfDual : List Formula -> Basics.Bool
-exsistsIsNotSelfDual list =
-    List.any
-        (\formula ->
-            case isNotSelfDual formula of
-                Nothing ->
-                    Basics.False
-
-                Just _ ->
-                    Basics.True
-        )
-        list
-
-
-isNotSelfDual : Formula -> Maybe (Dict String Bool)
-isNotSelfDual formula =
-    let
-        variables =
-            Dict.fromList (List.map (\variable -> ( variable, Basics.False )) (Set.toList (getVariables formula)))
-    in
-    isNotSelfDualHelp formula variables
-
-
-isNotSelfDualHelp : Formula -> Dict String Bool -> Maybe (Dict String Bool)
-isNotSelfDualHelp formula variables =
-    let
-        inverse_variables =
-            Dict.map (\_ v -> not v) variables
-    in
-    if evaluateUnsafe formula variables == evaluateUnsafe formula inverse_variables then
-        Just variables
-
-    else
-        Maybe.andThen (\newVariables -> isNotSelfDualHelp formula newVariables) (iterateVariables variables)
-
-
-
--- is not affine
-
-
-existsIsNotAffine : List Formula -> Basics.Bool
-existsIsNotAffine formula =
-    List.any isNotAffine formula
-
-
-isNotAffine : Formula -> Basics.Bool
-isNotAffine formula =
-    ANF.calculateANF formula
-        |> List.map List.length
-        |> List.maximum
-        |> Maybe.andThen (\x -> Just (x > 1))
-        |> Maybe.withDefault Basics.False
-
-
-
--- adequacy
-
-
-isAdequat : List Formula -> Basics.Bool
-isAdequat list =
-    List.all (\a -> a) [ existsAllInputNotEqInput list Basics.False, existsAllInputNotEqInput list Basics.True, exsistsIsNotMonotone list, existsIsNotAffine list, exsistsIsNotSelfDual list ]
 
 
 
@@ -450,3 +287,28 @@ parseInputSetHelp returnList counter inputList =
 
             else
                 parseInputSetHelp (returnList ++ [ a ]) (counter + 1) tail
+
+
+isAdequat : List Formula -> Basics.Bool
+isAdequat list =
+    List.all (\a -> a) [ existsAllInputNotEqInput list Basics.False, existsAllInputNotEqInput list Basics.True, exsistsIsNotMonotone list, existsIsNotAffine list, exsistsIsNotSelfDual list ]
+
+
+{-| Check if any of the boolean functions does not result in x for all inputs x: ∃formula ∈ List such that f (x,...,x) ≠ x
+
+    existsAllInputNotEqInput [a & b] True = (True && True /= True) = False
+
+-}
+existsAllInputNotEqInput : List Formula -> Basics.Bool -> Basics.Bool
+existsAllInputNotEqInput list x =
+    List.any (\formula -> allInputNotEqInput formula x) list
+
+
+{-| Check if a boolean function does not result in x for all inputs x: f (x,...,x) ≠ x
+
+    allInputNotEqInput (a & b) True = (True && True /= True) = False
+
+-}
+allInputNotEqInput : Formula -> Basics.Bool -> Basics.Bool
+allInputNotEqInput formula x =
+    evaluateUnsafe formula (Dict.fromList (List.map (\variable -> ( variable, x )) (Set.toList (getVariables formula)))) /= x
