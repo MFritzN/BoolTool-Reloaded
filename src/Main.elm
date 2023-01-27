@@ -146,10 +146,10 @@ view model =
                     ]
                 , div [ class "navbar-menu is-active" ]
                     [ div [ class "navbar-start" ]
-                        [ a [ class "navbar-item", href "/representations" ]
+                        [ a [ class "navbar-item", href "representations" ]
                             [ text "Representations"
                             ]
-                        , a [ class "navbar-item", href "/adequacy" ]
+                        , a [ class "navbar-item", href "adequacy" ]
                             [ text "Adequacy"
                             ]
                         ]
@@ -193,6 +193,7 @@ routeParser : Parser (PrimitiveRoute -> a) a
 routeParser =
     oneOf
         [ Url.Parser.map PrimitiveHome top
+        , Url.Parser.map PrimitiveHome (s "")
         , Url.Parser.map PrimitiveAdequacy (s "adequacy" </> fragment identity)
         , Url.Parser.map PrimitiveRepresentation (s "representations" </> fragment identity)
         ]
