@@ -4,11 +4,10 @@ module Representations.NormalForms exposing (..)
 -}
 
 import BoolImpl exposing (..)
-import Html exposing (Html, button, div, h4, i, input, text)
+import Html exposing (Html, button, div, i, input, text)
 import Html.Attributes exposing (class, readonly, style, value)
 import Html.Events exposing (onClick)
 import Representations.ANF as ANF exposing (calculateANF)
-import Set exposing (Set)
 
 
 type Msg

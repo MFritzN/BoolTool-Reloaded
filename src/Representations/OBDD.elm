@@ -4,7 +4,7 @@ import BoolImpl exposing (Formula, evaluateUnsafe)
 import Color
 import Dict exposing (Dict)
 import Graph as G
-import Html exposing (Html, div, h4, i, span, text)
+import Html exposing (Html, div, i, span, text)
 import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick)
 import List.Extra

@@ -1,9 +1,9 @@
-module Adequacy.Dualness exposing (..)
+module Adequacy.SelfDualness exposing (..)
 
 import BoolImpl exposing (Formula, evaluateUnsafe, getVariables, iterateVariables, varsToString)
 import Dict exposing (Dict)
 import Html exposing (Html, text)
-import Set exposing (Set)
+import Set
 import ViewHelpers exposing (renderTooltip)
 
 

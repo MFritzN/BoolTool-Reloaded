@@ -1,6 +1,6 @@
 module ViewHelpers exposing (..)
 
-import Html exposing (Html, div, h4, li, p, span, strong, text, ul)
+import Html exposing (Html, br, div, h4, li, p, span, strong, text, ul)
 import Html.Attributes exposing (attribute, class)
 
 
@@ -26,7 +26,13 @@ maybeToSymbol maybe =
 syntax : Html msg
 syntax =
     div []
-        [ p [] [ text "The tool automatically transforms known symbols into their corresponding unicode symbols on input. Direct Unicode input is also possible. Here you can find a few of the possible transformations: " ]
+        [ p []
+            (List.intersperse (br [] [])
+                (List.map text
+                    (String.lines "The grammar of our tool can be displayes in Backus-Naur-Form:\nφ ::= p | ⊥ | > | (¬φ) | (φ ∧ φ) | (φ ∨ φ) | (φ → φ) | (φ ⊕ φ)")
+                )
+            )
+        , p [] [ text "The tool automatically transforms known symbols into their corresponding unicode symbols on input. Direct Unicode input is also possible. Here you can find a few of the possible transformations: " ]
         , ul []
             [ li []
                 [ strong [] [ text "Negation:" ], text " ¬ | \\lnot | ~" ]
@@ -38,6 +44,10 @@ syntax =
                 [ strong [] [ text "Implication:" ], text " → | \\implies | ->" ]
             , li []
                 [ strong [] [ text "Exclusive Or:" ], text " ⊕ | \\oplus | ^" ]
+            , li []
+                [ strong [] [ text "Bottom:" ], text " False | \\bot" ]
+            , li []
+                [ strong [] [ text "Tee:" ], text " True | \\top" ]
             ]
         , p [] [ text "Note additional the additional rules for paranthesis:" ]
         , ul []

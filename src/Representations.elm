@@ -2,22 +2,21 @@ module Representations exposing (..)
 
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
-import Html exposing (Html, a, button, div, h4, h5, header, i, input, p, span, table, td, text, th, tr)
-import Html.Attributes exposing (attribute, class, placeholder, readonly, style, value)
+import Html exposing (Html, button, div, h1, h2, h3, h5, header, i, input, p, span, text)
+import Html.Attributes exposing (attribute, class, placeholder, value)
 import Html.Events exposing (onClick, onInput)
 import Parser.Advanced exposing (DeadEnd, run)
 import ParserError exposing (parserError)
 import Ports
 import Render.StandardDrawers.Types exposing (Shape(..))
-import Representations.ANF exposing (calculateANF, listToANF)
 import Representations.NormalForms as NormalForms exposing (NormalForm(..))
 import Representations.OBDD as OBDD
 import Representations.Properties as Properties
 import Representations.TruthTable as TruthTable
 import Result.Extra
-import Set exposing (Set)
+import Set
 import Url exposing (Url)
-import ViewHelpers exposing (boolToSymbol, renderBox, syntax)
+import ViewHelpers exposing (renderBox, syntax)
 
 
 
@@ -83,7 +82,7 @@ update msg model =
                     model.url
 
                 newUrl =
-                    { oldUrl | fragment = Just (reversePreprocessString preprocessedInput) }
+                    { oldUrl | fragment = Just (prettyPrintToURL preprocessedInput) }
             in
             ( { model | formulaInput = preprocessedInput, formulaInputParsed = formulaInputParsed, url = newUrl, obdd = OBDD.initModel formulaInputParsed }, replaceUrl model.key (Url.toString newUrl) )
 
@@ -119,25 +118,30 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ div [ class "field box" ]
-            [ input
-                [ if Result.Extra.isOk model.formulaInputParsed then
-                    class "is-success"
+        [ div [ class "box" ]
+            [ h3 [ class "title is-4" ] [ text "Representations" ]
 
-                  else
-                    class "is-danger"
-                , placeholder "Formula Input"
-                , value model.formulaInput
-                , onInput InputChanged
-                , class "input avoid-cursor-jump"
+            -- , p [] [ text "Try to type in a formula, like 'a & b'." ]
+            , div [ class "field" ]
+                [ input
+                    [ if Result.Extra.isOk model.formulaInputParsed then
+                        class "is-success"
+
+                      else
+                        class "is-danger"
+                    , placeholder "Formula Input - Try to type something like a & b"
+                    , value model.formulaInput
+                    , onInput InputChanged
+                    , class "input avoid-cursor-jump"
+                    ]
+                    []
+                , case model.formulaInputParsed of
+                    Ok formula ->
+                        p [] [ span [] [ text "Parsed Input: " ], text <| toString formula ]
+
+                    Err x ->
+                        p [ class "help is-danger" ] [ parserError x model.formulaInput ]
                 ]
-                []
-            , case model.formulaInputParsed of
-                Ok formula ->
-                    p [] [ span [] [ text "Parsed Input: " ], text <| toString formula ]
-
-                Err x ->
-                    p [ class "help is-danger" ] [ parserError x model.formulaInput ]
             ]
         , div []
             (usage model.showUsage

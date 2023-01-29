@@ -1,12 +1,12 @@
 module Adequacy exposing (..)
 
 import Adequacy.Affinity exposing (existsIsNotAffine, isNotAffine)
-import Adequacy.Dualness exposing (exsistsIsNotSelfDual, renderSelfDualness)
 import Adequacy.Monotonicity exposing (exsistsIsNotMonotone, renderMonotone)
+import Adequacy.SelfDualness exposing (exsistsIsNotSelfDual, renderSelfDualness)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key)
 import Dict exposing (..)
-import Html exposing (Html, button, div, h5, header, i, input, p, span, table, td, text, th, tr)
+import Html exposing (Html, button, div, h4, h5, header, i, input, p, span, table, td, text, th, tr)
 import Html.Attributes exposing (..)
 import Html.Events exposing (keyCode, on, onClick, onInput)
 import Json.Decode as Json exposing (string)
@@ -73,7 +73,7 @@ update msg model =
                             model.list ++ List.filter (\inputFormula -> not (List.any (equals inputFormula) model.list)) inputList
 
                         newUrl =
-                            { oldUrl | fragment = Just (reversePreprocessString (functionSetToString newSet)) }
+                            { oldUrl | fragment = Just (prettyPrintToURL (functionSetToString newSet)) }
                     in
                     ( { model | list = newSet, setInput = "", setInputParsed = parseInputSet "", url = newUrl }, Browser.Navigation.replaceUrl model.key (Url.toString newUrl) )
 
@@ -94,30 +94,40 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ div [ onEnter AddToSet, class "box" ]
-            [ div [ class "field has-addons" ]
-                [ div [ class "control is-expanded" ]
-                    [ input
-                        [ if Result.Extra.isOk model.setInputParsed then
-                            class ""
+        [ div [ class "box" ]
+            [ h4 [ class "title is-4" ] [ text "Adequacy" ]
+            , div [ onEnter AddToSet ]
+                [ div [ class "field has-addons" ]
+                    [ div [ class "control is-expanded" ]
+                        [ input
+                            [ if Result.Extra.isOk model.setInputParsed then
+                                class ""
 
-                          else
-                            class "is-danger"
-                        , placeholder "Function Input"
-                        , value model.setInput
-                        , onInput InputChanged
-                        , class "input avoid-cursor-jump level"
+                              else
+                                class "is-danger"
+                            , placeholder <|
+                                "Function Input"
+                                    ++ (if List.isEmpty model.list then
+                                            "- Try something like a & b, ~a"
+
+                                        else
+                                            ""
+                                       )
+                            , value model.setInput
+                            , onInput InputChanged
+                            , class "input avoid-cursor-jump level"
+                            ]
+                            []
                         ]
-                        []
+                    , div [ class "control" ] [ button [ onClick AddToSet, class "button" ] [ text "Add to Set" ] ]
                     ]
-                , div [ class "control" ] [ button [ onClick AddToSet, class "button" ] [ text "Add to Set" ] ]
-                ]
-            , case model.setInputParsed of
-                Ok list ->
-                    p [] [ span [] [ text "Parsed Input: " ], text <| functionSetToString list ]
+                , case model.setInputParsed of
+                    Ok list ->
+                        p [] [ span [] [ text "Parsed Input: " ], text <| functionSetToString list ]
 
-                Err x ->
-                    p [ class "help is-danger" ] [ x ]
+                    Err x ->
+                        p [ class "help is-danger" ] [ x ]
+                ]
             ]
         , usage model.showUsage
         , renderPostConditions model.list

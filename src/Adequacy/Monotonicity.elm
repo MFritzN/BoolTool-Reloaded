@@ -3,7 +3,7 @@ module Adequacy.Monotonicity exposing (..)
 import BoolImpl exposing (Formula, getVariables, iterateVariables)
 import Dict exposing (Dict)
 import Html exposing (Html, text)
-import Set exposing (Set)
+import Set
 import ViewHelpers exposing (boolToSymbol, renderTooltip)
 
 

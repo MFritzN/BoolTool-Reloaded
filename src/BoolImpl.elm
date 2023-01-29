@@ -105,8 +105,8 @@ boolExpression =
         Pratt.Advanced.expression
             { oneOf =
                 [ typeVarHelp
-                , constant (keyword (Parser.Advanced.Token "True" ExpectingVariable)) True
-                , constant (keyword (Parser.Advanced.Token "False" ExpectingVariable)) False
+                , constant (keyword <| Parser.Advanced.Token "True" ExpectingVariable) True
+                , constant (keyword <| Parser.Advanced.Token "False" ExpectingVariable) False
                 , constant (symbol <| Parser.Advanced.Token "⊤" ExpectingVariable) True
                 , constant (symbol <| Parser.Advanced.Token "⊥" ExpectingVariable) False
                 , prefix (precedence (Neg True)) (symbol (Parser.Advanced.Token "¬" ExpectingOperator)) Neg
@@ -275,26 +275,6 @@ varsToString vars =
     "f ( " ++ stringVars ++ " )"
 
 
-{-| Remove unicode symbols from strings. This is mainly needed to save formulas into the URL.
--}
-reversePreprocessString : String -> String
-reversePreprocessString string =
-    string
-        |> String.filter (\c -> c /= ' ')
-        |> String.replace "∧" "\\land"
-        |> String.replace "∨" "\\lor"
-        |> String.replace "¬" "\\lnot"
-        |> String.replace "⊕" "\\oplus"
-        |> String.replace "→" "\\implies"
-        |> String.replace "⊤" "\\top"
-        |> String.replace "⊥" "\\bot"
-
-
-formulaToLaTeX : Formula -> String
-formulaToLaTeX formula =
-    prettyPrintToLaTeX <| toString formula
-
-
 prettyPrintToLaTeX : String -> String
 prettyPrintToLaTeX string =
     string
@@ -305,6 +285,20 @@ prettyPrintToLaTeX string =
         |> String.replace "→" "\\implies"
         |> String.replace "⊤" "\\top"
         |> String.replace "⊥" "\\bottom"
+
+
+{-| Remove unicode symbols from strings. This is mainly needed to save formulas into the URL.
+-}
+prettyPrintToURL : String -> String
+prettyPrintToURL string =
+    string
+        |> prettyPrintToLaTeX
+        |> String.filter (\c -> c /= ' ')
+
+
+formulaToLaTeX : Formula -> String
+formulaToLaTeX formula =
+    prettyPrintToLaTeX <| toString formula
 
 
 

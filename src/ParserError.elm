@@ -2,7 +2,7 @@ module ParserError exposing (..)
 
 import BoolImpl exposing (Context, Problem(..))
 import Html exposing (Html, div, section, span, table, td, text, tr)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (attribute, class, style)
 import List
 import Parser.Advanced exposing (DeadEnd)
 
@@ -64,7 +64,7 @@ parserError list input =
                         Just error ->
                             div []
                                 [ table []
-                                    [ tr [ class "wavy" ]
+                                    [ tr [ class "wavy keepWhitespace" ]
                                         [ td [] [ text <| String.dropRight (length - error.column + 1) input ]
                                         , td [] [ text <| String.slice (error.column - 1) error.column input ]
                                         , td [] [ text <| String.dropLeft error.column input ]

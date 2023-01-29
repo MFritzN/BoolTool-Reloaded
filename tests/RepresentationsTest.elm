@@ -1,9 +1,7 @@
 module RepresentationsTest exposing (..)
 
 import BoolImpl exposing (..)
-import Dict exposing (Dict)
 import Expect
-import Parser exposing (variable)
 import Representations.ANF exposing (calculateANF, listToANF)
 import Representations.NormalForms exposing (calculateCNF, calculateDNF, calculateNNF)
 import Representations.TruthTable exposing (calculateTruthTable)
