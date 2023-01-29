@@ -105,8 +105,6 @@ boolExpression =
         Pratt.Advanced.expression
             { oneOf =
                 [ typeVarHelp
-                , constant (keyword <| Parser.Advanced.Token "True" ExpectingVariable) True
-                , constant (keyword <| Parser.Advanced.Token "False" ExpectingVariable) False
                 , constant (symbol <| Parser.Advanced.Token "⊤" ExpectingVariable) True
                 , constant (symbol <| Parser.Advanced.Token "⊥" ExpectingVariable) False
                 , prefix (precedence (Neg True)) (symbol (Parser.Advanced.Token "¬" ExpectingOperator)) Neg
@@ -148,6 +146,10 @@ preprocessString string =
         |> String.replace "\\oplus" "⊕"
         |> String.replace "\\top" "⊤"
         |> String.replace "\\bot" "⊥"
+        |> String.replace "True" "⊤"
+        |> String.replace "False" "⊥"
+        |> String.replace "true" "⊤"
+        |> String.replace "false" "⊥"
 
 
 
