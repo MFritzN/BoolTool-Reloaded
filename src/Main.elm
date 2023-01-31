@@ -4,7 +4,7 @@ import Adequacy
 import BoolImpl exposing (..)
 import Browser
 import Browser.Navigation as Nav
-import Html exposing (Html, a, button, div, footer, h4, i, nav, p, strong, text)
+import Html exposing (Html, a, button, div, footer, h4, i, nav, p, span, strong, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Ports
@@ -182,7 +182,7 @@ view model =
 
 shareButton : Html Msg
 shareButton =
-    button [ class "button", onClick Share ] [ i [ class "fa-solid fa-share-nodes is-primary" ] [] ]
+    button [ class "button", onClick Share ] [ span [ class "icon" ] [ i [ class "fas fa-share-alt" ] [] ] ]
 
 
 

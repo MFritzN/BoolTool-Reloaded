@@ -4,7 +4,7 @@ module Representations.NormalForms exposing (..)
 -}
 
 import BoolImpl exposing (..)
-import Html exposing (Html, button, div, i, input, text)
+import Html exposing (Html, button, div, i, input, span, text)
 import Html.Attributes exposing (class, readonly, style, value)
 import Html.Events exposing (onClick)
 import Representations.ANF as ANF exposing (calculateANF)
@@ -67,7 +67,7 @@ renderLaTeX formula =
     in
     div [ class "field has-addons" ]
         [ div [ class "control is-expanded" ] [ input [ value laTeX, class "input copy-input is-small", readonly Basics.True ] [] ]
-        , div [ class "control" ] [ button [ class "button is-small", onClick <| Copy laTeX ] [ i [ class "fa-regular fa-clipboard" ] [] ] ]
+        , div [ class "control" ] [ button [ class "button is-small", onClick <| Copy laTeX ] [ span [ class "icon" ] [ i [ class "far fa-clipboard" ] [] ] ] ]
         ]
 
 

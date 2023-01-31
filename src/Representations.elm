@@ -2,7 +2,7 @@ module Representations exposing (..)
 
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
-import Html exposing (Html, button, div, h1, h2, h3, h5, header, i, input, p, span, text)
+import Html exposing (Html, button, div, h3, h5, header, i, input, p, span, text)
 import Html.Attributes exposing (attribute, class, placeholder, value)
 import Html.Events exposing (onClick, onInput)
 import Parser.Advanced exposing (DeadEnd, run)
@@ -15,6 +15,7 @@ import Representations.Properties as Properties
 import Representations.TruthTable as TruthTable
 import Result.Extra
 import Set
+import Svg.Attributes
 import Url exposing (Url)
 import ViewHelpers exposing (renderBox, syntax)
 
@@ -158,7 +159,7 @@ usage showContent =
             , button [ class "card-header-icon", onClick UsageUpdate, attribute "aria-label" "more options" ]
                 [ span [ class "icon" ]
                     [ i
-                        [ class
+                        [ Svg.Attributes.class
                             (if showContent then
                                 "fas fa-angle-up"
 

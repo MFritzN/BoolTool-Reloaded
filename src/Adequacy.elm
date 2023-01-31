@@ -16,6 +16,7 @@ import ParserError exposing (parserError)
 import Representations.ANF as ANF
 import Result.Extra
 import Set
+import Svg.Attributes
 import Url exposing (Url)
 import ViewHelpers exposing (boolToSymbol, syntax)
 
@@ -148,7 +149,7 @@ usage showContent =
             , button [ class "card-header-icon", onClick UsageUpdate, attribute "aria-label" "more options" ]
                 [ span [ class "icon" ]
                     [ i
-                        [ class
+                        [ Svg.Attributes.class
                             (if showContent then
                                 "fas fa-angle-up"
 
