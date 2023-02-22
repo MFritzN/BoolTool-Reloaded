@@ -1,7 +1,7 @@
 {
   "main.css": "/BoolTool-Reloaded/static/css/main.056b4050.chunk.css",
-  "main.js": "/BoolTool-Reloaded/static/js/main.16aec410.chunk.js",
-  "main.js.map": "/BoolTool-Reloaded/static/js/main.16aec410.chunk.js.map",
+  "main.js": "/BoolTool-Reloaded/static/js/main.0e4c1bb0.chunk.js",
+  "main.js.map": "/BoolTool-Reloaded/static/js/main.0e4c1bb0.chunk.js.map",
   "runtime~main.js": "/BoolTool-Reloaded/static/js/runtime~main.80be794a.js",
   "runtime~main.js.map": "/BoolTool-Reloaded/static/js/runtime~main.80be794a.js.map",
   "vendors~main.css": "/BoolTool-Reloaded/static/css/vendors~main.34b331dc.chunk.css",
@@ -13,5 +13,5 @@
   "index.html": "/BoolTool-Reloaded/index.html",
   "logo.svg": "/BoolTool-Reloaded/logo.svg",
   "manifest.json": "/BoolTool-Reloaded/manifest.json",
-  "precache-manifest.a6705d2f0e93fa6b3fe35535b387e933.js": "/BoolTool-Reloaded/precache-manifest.a6705d2f0e93fa6b3fe35535b387e933.js"
+  "precache-manifest.6708d04a134644f8706e0a5453010daf.js": "/BoolTool-Reloaded/precache-manifest.6708d04a134644f8706e0a5453010daf.js"
 }
