@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
 
 importScripts(
-  "/my-app/precache-manifest.32f966b5a183a100c198e5e392fac9ce.js"
+  "/BoolTool-Reloaded/precache-manifest.a6705d2f0e93fa6b3fe35535b387e933.js"
 );
 
 workbox.core.skipWaiting();
