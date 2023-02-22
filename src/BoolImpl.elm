@@ -140,7 +140,6 @@ preprocessString string =
         |> String.replace "!" "¬"
         |> String.replace "^" "⊕"
         |> String.replace "->" "→"
-        |> String.replace "\\to" "→"
         |> String.replace "\\rightarrow" "→"
         |> String.replace "\\implies" "→"
         |> String.replace "\\oplus" "⊕"
@@ -286,7 +285,7 @@ prettyPrintToLaTeX string =
         |> String.replace "⊕" "\\oplus"
         |> String.replace "→" "\\implies"
         |> String.replace "⊤" "\\top"
-        |> String.replace "⊥" "\\bottom"
+        |> String.replace "⊥" "\\bot"
 
 
 {-| Remove unicode symbols from strings. This is mainly needed to save formulas into the URL.
