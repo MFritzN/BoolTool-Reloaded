@@ -36,4 +36,4 @@ The tests are implemented with [elm test](https://package.elm-lang.org/packages/
 The code is formatted with [elm-format](https://github.com/avh4/elm-format).
 
 ## Deployment
-Please refer to the [elm-app documentary](https://github.com/halfzebra/create-elm-app/blob/master/template/README.md#deployment) which describes the deployment process on multiple platforms. Please note that you need to set the relative path of the source file nad that the copy to clipboard functionality is only supported for HTTPS pages by browsers.
+Please refer to the [elm-app documentary](https://github.com/halfzebra/create-elm-app/blob/master/template/README.md#deployment) which describes the deployment process on multiple platforms. Please note that you need to set the relative path of the source file and that the copy to clipboard functionality is only supported for HTTPS pages by browsers.

@@ -132,7 +132,7 @@ This is needed as a preprocessing step for `calculateNNF`.
 -}
 replaceImplXor : Formula -> Formula
 replaceImplXor formula =
-    case formula of
+    case replaceBotTop formula of
         Neg a ->
             Neg (replaceImplXor a)
 
@@ -147,6 +147,92 @@ replaceImplXor formula =
 
         Xor a b ->
             replaceImplXor (Or (And a (Neg b)) (And (Neg a) b))
+
+        a ->
+            a
+
+
+replaceBotTop : Formula -> Formula
+replaceBotTop formula =
+    case formula of
+        Neg a ->
+            case replaceBotTop a of
+                BoolImpl.True ->
+                    BoolImpl.False
+
+                BoolImpl.False ->
+                    BoolImpl.True
+
+                x ->
+                    Neg x
+
+        And a b ->
+            case ( replaceBotTop a, replaceBotTop b ) of
+                ( BoolImpl.True, y ) ->
+                    y
+
+                ( x, BoolImpl.True ) ->
+                    x
+
+                ( BoolImpl.False, _ ) ->
+                    BoolImpl.False
+
+                ( _, BoolImpl.False ) ->
+                    BoolImpl.False
+
+                ( x, y ) ->
+                    And x y
+
+        Or a b ->
+            case ( replaceBotTop a, replaceBotTop b ) of
+                ( BoolImpl.True, _ ) ->
+                    BoolImpl.True
+
+                ( _, BoolImpl.True ) ->
+                    BoolImpl.True
+
+                ( BoolImpl.False, y ) ->
+                    y
+
+                ( x, BoolImpl.False ) ->
+                    x
+
+                ( x, y ) ->
+                    Or x y
+
+        Xor a b ->
+            case ( replaceBotTop a, replaceBotTop b ) of
+                ( BoolImpl.False, y ) ->
+                    y
+
+                ( x, BoolImpl.False ) ->
+                    x
+
+                ( BoolImpl.True, y ) ->
+                    replaceBotTop <| Neg y
+
+                ( y, BoolImpl.True ) ->
+                    replaceBotTop <| Neg y
+
+                ( x, y ) ->
+                    Xor x y
+
+        Impl a b ->
+            case ( replaceBotTop a, replaceBotTop b ) of
+                ( BoolImpl.False, _ ) ->
+                    BoolImpl.True
+
+                ( _, BoolImpl.True ) ->
+                    BoolImpl.True
+
+                ( x, BoolImpl.False ) ->
+                    replaceBotTop <| Neg x
+
+                ( BoolImpl.True, y ) ->
+                    y
+
+                ( x, y ) ->
+                    Impl x y
 
         a ->
             a
