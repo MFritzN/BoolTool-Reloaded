@@ -47,7 +47,7 @@ syntax =
             , li []
                 [ strong [] [ text "Bottom:" ], text " False | \\bot" ]
             , li []
-                [ strong [] [ text "Tee:" ], text " True | \\top" ]
+                [ strong [] [ text "Top:" ], text " True | \\top" ]
             ]
         , p [] [ text "Note additional the additional rules for paranthesis:" ]
         , ul []
