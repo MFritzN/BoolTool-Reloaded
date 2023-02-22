@@ -36,4 +36,11 @@ The tests are implemented with [elm test](https://package.elm-lang.org/packages/
 The code is formatted with [elm-format](https://github.com/avh4/elm-format).
 
 ## Deployment
-Please refer to the [elm-app documentary](https://github.com/halfzebra/create-elm-app/blob/master/template/README.md#deployment) which describes the deployment process on multiple platforms. Please note that you need to set the relative path of the source file and that the copy to clipboard functionality is only supported for HTTPS pages by browsers.
+`elm-app build` gives you a deployable app in the `build` directory.
+If the app is not hosted at the server root, you need to set the environment variable `ELM_APP_BASE_URL` in [`.env`](./.env) to your the URL your website will be on, e.g.:
+```JS
+ELM_APP_BASE_URL="https://mfritzn.github.io/BoolTool-Reloaded"
+```
+This environment variable is used by create-elm-app to assign the correct paths for resources as well as our app for routing and link sharing.
+
+Please also refer to the [create-elm-app documentary](https://github.com/halfzebra/create-elm-app/blob/master/template/README.md#deployment) which describes the deployment process on multiple platforms. 

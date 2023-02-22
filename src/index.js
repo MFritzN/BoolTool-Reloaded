@@ -3,8 +3,12 @@ import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 import * as bulmaToast from 'bulma-toast'
 
+const basePath = new URL(process.env.ELM_APP_BASE_URL).pathname;
+console.log(basePath);
+
 var app = Elm.Main.init({
-  node: document.getElementById('root')
+  node: document.getElementById('root'),
+  flags: {basePath},
 });
 
 app.ports.copy.subscribe((string) => {

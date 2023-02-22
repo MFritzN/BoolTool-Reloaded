@@ -17,7 +17,7 @@ import Url.Parser exposing ((</>), Parser, fragment, oneOf, parse, s, top)
 -- MAIN
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.application
         { init = init
@@ -36,6 +36,12 @@ main =
 type alias Model =
     { url : Url.Url
     , route : Route
+    , flags : Flags
+    }
+
+
+type alias Flags =
+    { basePath : String
     }
 
 
@@ -51,14 +57,15 @@ type PrimitiveRoute
     | PrimitiveHome
 
 
-init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
-init _ url key =
+init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init flags url key =
     let
         routeTuple =
-            getRoute url key
+            getRoute flags.basePath url key
     in
-    ( { url = url
+    ( { url = Maybe.withDefault url <| Url.fromString <| Url.toString url ++ flags.basePath
       , route = Tuple.first routeTuple
+      , flags = flags
       }
     , Tuple.second routeTuple
     )
@@ -97,7 +104,7 @@ update msg model =
         ( LinkClicked urlRequest, _ ) ->
             case urlRequest of
                 Browser.Internal url ->
-                    ( { model | route = Tuple.first (getRoute url key) }
+                    ( { model | route = Tuple.first (getRoute model.flags.basePath url key) }
                     , Nav.pushUrl key (Url.toString url)
                     )
 
@@ -140,7 +147,7 @@ view model =
         [ div [ class "container" ]
             [ nav [ class "navbar" ]
                 [ div [ class "navbar-brand" ]
-                    [ a [ class "navbar-item", href "/" ]
+                    [ a [ class "navbar-item", href "representations" ]
                         [ h4 [ class "h4" ] [ strong [] [ text "BoolTool Reloaded" ] ]
                         ]
                     ]
@@ -187,6 +194,9 @@ shareButton =
 
 
 -- other functions
+{- | Responsible for getting for parsing Primitive Routes. Please note that this function can not handle relative paths. It always expects the site to be at the root of a website.
+   In case it is not, the relative base must be removed from the path.
+-}
 
 
 routeParser : Parser (PrimitiveRoute -> a) a
@@ -199,25 +209,30 @@ routeParser =
         ]
 
 
-getRoute : Url.Url -> Nav.Key -> ( Route, Cmd Msg )
-getRoute url key =
+getRoute : String -> Url.Url -> Nav.Key -> ( Route, Cmd Msg )
+getRoute basePath relativeUrl key =
+    let
+        -- routeParser can not handle relative paths inside the URL so we remove the relative Path here.
+        url =
+            { relativeUrl | path = String.replace basePath "" relativeUrl.path }
+    in
     case parse routeParser url of
         Just (PrimitiveRepresentation Nothing) ->
-            ( Representation "" (Representations.initModel "" key url), Cmd.none )
+            ( Representation "" (Representations.initModel "" key relativeUrl), Cmd.none )
 
         Just (PrimitiveRepresentation (Just a)) ->
-            ( Representation a (Representations.initModel a key url), Cmd.none )
+            ( Representation a (Representations.initModel a key relativeUrl), Cmd.none )
 
         Just (PrimitiveAdequacy Nothing) ->
-            ( Adequacy "" (Adequacy.initModel "" key url), Cmd.none )
+            ( Adequacy "" (Adequacy.initModel "" key relativeUrl), Cmd.none )
 
         Just (PrimitiveAdequacy (Just a)) ->
-            ( Adequacy a (Adequacy.initModel a key url), Cmd.none )
+            ( Adequacy a (Adequacy.initModel a key relativeUrl), Cmd.none )
 
         Just PrimitiveHome ->
             let
                 newUrl =
-                    { url | path = "/representations" }
+                    { url | path = basePath ++ "/representations" }
             in
             ( Representation "" (Representations.initModel "" key newUrl), Nav.replaceUrl key (Url.toString newUrl) )
 
