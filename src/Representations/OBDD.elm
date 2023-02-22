@@ -226,7 +226,7 @@ computeOBDDHelp bdd idManagment =
                         loResult.myId
 
                     else
-                        Maybe.withDefault ((+) 1 <| Maybe.withDefault 2 <| List.maximum <| Dict.values loResult.idManagment) (Dict.get ( variable, hiResult.myId, loResult.myId ) loResult.idManagment)
+                        Maybe.withDefault ((+) 1 <| Maybe.withDefault 1 <| List.maximum <| Dict.values loResult.idManagment) (Dict.get ( variable, hiResult.myId, loResult.myId ) loResult.idManagment)
             in
             { myId = myId
             , idManagment =
