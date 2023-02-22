@@ -8,7 +8,7 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/BoolTool-Reloaded/favicon.ico"
   },
   {
-    "revision": "22b5b9d225ee1f9be6c65f39818d262d",
+    "revision": "87abe0324fa1034339acf1db810351df",
     "url": "/BoolTool-Reloaded/index.html"
   },
   {
@@ -20,7 +20,7 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/BoolTool-Reloaded/manifest.json"
   },
   {
-    "revision": "560e273d41027014c62b",
+    "revision": "87c05afceb9934792e27",
     "url": "/BoolTool-Reloaded/static/css/main.056b4050.chunk.css"
   },
   {
@@ -28,8 +28,8 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/BoolTool-Reloaded/static/css/vendors~main.34b331dc.chunk.css"
   },
   {
-    "revision": "560e273d41027014c62b",
-    "url": "/BoolTool-Reloaded/static/js/main.560e273d.chunk.js"
+    "revision": "87c05afceb9934792e27",
+    "url": "/BoolTool-Reloaded/static/js/main.87c05afc.chunk.js"
   },
   {
     "revision": "80be794a20c377300a4e",
