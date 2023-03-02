@@ -1,7 +1,7 @@
 module BoolImpl exposing (..)
 
 import Dict exposing (Dict)
-import Parser.Advanced exposing ((|.), (|=), Parser, Token, end, inContext, keyword, succeed, symbol, variable)
+import Parser.Advanced exposing ((|.), (|=), Parser, end, inContext, keyword, succeed, symbol, variable)
 import Pratt.Advanced exposing (constant, infixRight, prefix)
 import Set exposing (..)
 
@@ -10,6 +10,7 @@ import Set exposing (..)
 --
 -- A module for representing and handling boolean formulas and sets of functions internally
 --
+-- Types
 
 
 {-| Internal Representation for Boolean Formulas and Functions
@@ -41,6 +42,17 @@ type Problem
     | ExpectingEnd
 
 
+
+-- Parser
+
+
+formula_p : Parser Context Problem Formula
+formula_p =
+    succeed identity
+        |= boolExpression
+        |. end ExpectingEnd
+
+
 precedence : Formula -> Int
 precedence operator =
     case operator of
@@ -63,37 +75,6 @@ precedence operator =
             5
 
 
-equals : Formula -> Formula -> Bool
-equals form1 form2 =
-    case ( form1, form2 ) of
-        ( True, True ) ->
-            Basics.True
-
-        ( False, False ) ->
-            Basics.True
-
-        ( And form11 form12, And form21 form22 ) ->
-            equals form11 form21 && equals form12 form22
-
-        ( Or form11 form12, Or form21 form22 ) ->
-            equals form11 form21 && equals form12 form22
-
-        ( Impl form11 form12, Impl form21 form22 ) ->
-            equals form11 form21 && equals form12 form22
-
-        ( Xor form11 form12, Xor form21 form22 ) ->
-            equals form11 form21 && equals form12 form22
-
-        ( Neg form11, Neg form21 ) ->
-            equals form11 form21
-
-        ( Var string1, Var string2 ) ->
-            string1 == string2
-
-        _ ->
-            Basics.False
-
-
 typeVar : Parser c Problem String
 typeVar =
     variable
@@ -110,14 +91,20 @@ typeVarHelp _ =
         |= typeVar
 
 
+parenthesizedExpression : Pratt.Advanced.Config c Problem Formula -> Parser c Problem Formula
+parenthesizedExpression config =
+    succeed identity
+        |. symbol (Parser.Advanced.Token "(" ExpectingOpeningBracket)
+        |= Pratt.Advanced.subExpression 0 config
+        |. symbol (Parser.Advanced.Token ")" ExpectingClosingBracket)
+
+
 boolExpression : Parser Context Problem Formula
 boolExpression =
     inContext FormulaContext <|
         Pratt.Advanced.expression
             { oneOf =
                 [ typeVarHelp
-                , constant (keyword (Parser.Advanced.Token "True" ExpectingVariable)) True
-                , constant (keyword (Parser.Advanced.Token "False" ExpectingVariable)) False
                 , constant (symbol <| Parser.Advanced.Token "⊤" ExpectingVariable) True
                 , constant (symbol <| Parser.Advanced.Token "⊥" ExpectingVariable) False
                 , prefix (precedence (Neg True)) (symbol (Parser.Advanced.Token "¬" ExpectingOperator)) Neg
@@ -133,19 +120,39 @@ boolExpression =
             }
 
 
-parenthesizedExpression : Pratt.Advanced.Config c Problem Formula -> Parser c Problem Formula
-parenthesizedExpression config =
-    succeed identity
-        |. symbol (Parser.Advanced.Token "(" ExpectingOpeningBracket)
-        |= Pratt.Advanced.subExpression 0 config
-        |. symbol (Parser.Advanced.Token ")" ExpectingClosingBracket)
+{-| Replaces some input symbols and latex equivalents with their correpsonding Unicode charackters.
+
+    preprocessString "a & b \wedge c" == "a ∧ b ∧ c"
+
+-}
+preprocessString : String -> String
+preprocessString string =
+    string
+        |> String.replace "\\wedge" "∧"
+        |> String.replace "&" "∧"
+        |> String.replace "\\land" "∧"
+        |> String.replace "\\vee" "∨"
+        |> String.replace "\\lor" "∨"
+        |> String.replace "|" "∨"
+        |> String.replace "~" "¬"
+        |> String.replace "\\neg" "¬"
+        |> String.replace "\\lnot" "¬"
+        |> String.replace "!" "¬"
+        |> String.replace "^" "⊕"
+        |> String.replace "->" "→"
+        |> String.replace "\\rightarrow" "→"
+        |> String.replace "\\implies" "→"
+        |> String.replace "\\oplus" "⊕"
+        |> String.replace "\\top" "⊤"
+        |> String.replace "\\bot" "⊥"
+        |> String.replace "True" "⊤"
+        |> String.replace "False" "⊥"
+        |> String.replace "true" "⊤"
+        |> String.replace "false" "⊥"
 
 
-formula_p : Parser Context Problem Formula
-formula_p =
-    succeed identity
-        |= boolExpression
-        |. end ExpectingEnd
+
+-- Pretty Print
 
 
 toString : Formula -> String
@@ -199,6 +206,22 @@ toStringHelp symbol formula lForm rForm =
            )
 
 
+operatorIsAssociative : Formula -> Basics.Bool
+operatorIsAssociative formula =
+    case formula of
+        And _ _ ->
+            Basics.True
+
+        Or _ _ ->
+            Basics.True
+
+        Xor _ _ ->
+            Basics.True
+
+        _ ->
+            Basics.False
+
+
 topOperaterIsEqual : Formula -> Formula -> Basics.Bool
 topOperaterIsEqual formula1 formula2 =
     case ( formula1, formula2 ) of
@@ -224,69 +247,105 @@ topOperaterIsEqual formula1 formula2 =
             Basics.False
 
 
-operatorIsAssociative : Formula -> Basics.Bool
-operatorIsAssociative formula =
-    case formula of
-        And _ _ ->
+functionHeaderToString : List String -> String
+functionHeaderToString vars =
+    List.foldl (\var header -> header ++ var ++ ", ") "f (" vars
+        |> String.dropRight 2
+        |> (\str -> str ++ ")")
+
+
+varsToString : Dict String Basics.Bool -> String
+varsToString vars =
+    let
+        stringVars =
+            String.dropRight 2
+                (List.foldl
+                    (\value string ->
+                        string
+                            ++ (if value then
+                                    "1, "
+
+                                else
+                                    "0, "
+                               )
+                    )
+                    ""
+                    (Dict.values vars)
+                )
+    in
+    "f ( " ++ stringVars ++ " )"
+
+
+prettyPrintToLaTeX : String -> String
+prettyPrintToLaTeX string =
+    string
+        |> String.replace "∧" "\\land"
+        |> String.replace "∨" "\\lor"
+        |> String.replace "¬" "\\lnot "
+        |> String.replace "⊕" "\\oplus"
+        |> String.replace "→" "\\implies"
+        |> String.replace "⊤" "\\top"
+        |> String.replace "⊥" "\\bot"
+
+
+{-| Remove unicode symbols from strings. This is mainly needed to save formulas into the URL.
+-}
+prettyPrintToURL : String -> String
+prettyPrintToURL string =
+    string
+        |> prettyPrintToLaTeX
+        |> String.filter (\c -> c /= ' ')
+
+
+formulaToLaTeX : Formula -> String
+formulaToLaTeX formula =
+    prettyPrintToLaTeX <| toString formula
+
+
+
+-- Comparing Formulas
+
+
+{-| Test two formulas on total equality.
+
+    equals (And a b) (And b a) == False
+    equals (And a b) (And a b) == True
+
+-}
+equals : Formula -> Formula -> Bool
+equals form1 form2 =
+    case ( form1, form2 ) of
+        ( True, True ) ->
             Basics.True
 
-        Or _ _ ->
+        ( False, False ) ->
             Basics.True
 
-        Xor _ _ ->
-            Basics.True
+        ( And form11 form12, And form21 form22 ) ->
+            equals form11 form21 && equals form12 form22
+
+        ( Or form11 form12, Or form21 form22 ) ->
+            equals form11 form21 && equals form12 form22
+
+        ( Impl form11 form12, Impl form21 form22 ) ->
+            equals form11 form21 && equals form12 form22
+
+        ( Xor form11 form12, Xor form21 form22 ) ->
+            equals form11 form21 && equals form12 form22
+
+        ( Neg form11, Neg form21 ) ->
+            equals form11 form21
+
+        ( Var string1, Var string2 ) ->
+            string1 == string2
 
         _ ->
             Basics.False
 
 
-{-| Replaces some input symbols and latex equivalents with their correpsonding Unicode charackters.
-
-    preprocessString "a & b \wedge c" == "a ∧ b ∧ c"
-
--}
-preprocessString : String -> String
-preprocessString string =
-    string
-        |> String.replace "\\wedge" "∧"
-        |> String.replace "&" "∧"
-        |> String.replace "\\vee" "∨"
-        |> String.replace "|" "∨"
-        |> String.replace "~" "¬"
-        |> String.replace "\\neg" "¬"
-        |> String.replace "!" "¬"
-        |> String.replace "^" "⊕"
-        |> String.replace "->" "→"
-        |> String.replace "\\to" "→"
-        |> String.replace "\\rightarrow" "→"
-        |> String.replace "\\implies" "→"
-        |> String.replace "\\oplus" "⊕"
-        |> String.replace "\\top" "⊤"
-        |> String.replace "\\bottom" "⊥"
-
-
-reversePreprocessString : String -> String
-reversePreprocessString string =
-    string
-        |> String.filter (\c -> c /= ' ')
-        |> String.replace "∧" "\\wedge"
-        |> String.replace "∨" "\\vee"
-        |> String.replace "¬" "\\neg"
-        |> String.replace "⊕" "\\oplus"
-        |> String.replace "→" "\\implies"
-        |> String.replace "⊤" "\\top"
-        |> String.replace "⊥" "\\bottom"
-
-
 getVariables : Formula -> Set String
 getVariables formula =
     case formula of
-        True ->
-            Set.empty
-
-        False ->
-            Set.empty
-
         Var string ->
             Set.singleton string
 
@@ -304,6 +363,10 @@ getVariables formula =
 
         Xor subFormA subFormB ->
             Set.union (getVariables subFormA) (getVariables subFormB)
+
+        -- True & False
+        _ ->
+            Set.empty
 
 
 {-| Evaluate a [`Formula`](BoolImpl#Formula).
@@ -365,135 +428,3 @@ iterateVariablesHelp changedVariables unchangedVariables =
 
         Basics.True :: unchangedVariablesTail ->
             iterateVariablesHelp (changedVariables ++ [ Basics.False ]) unchangedVariablesTail
-
-
-simplify : Formula -> Formula
-simplify formula =
-    case formula of
-        True ->
-            True
-
-        False ->
-            False
-
-        Var string ->
-            Var string
-
-        And form1 form2 ->
-            case ( simplify form1, simplify form2 ) of
-                ( True, x ) ->
-                    x
-
-                ( x, True ) ->
-                    x
-
-                ( False, _ ) ->
-                    False
-
-                ( _, False ) ->
-                    False
-
-                ( x, y ) ->
-                    And x y
-
-        Xor form1 form2 ->
-            case ( simplify form1, simplify form2 ) of
-                ( True, True ) ->
-                    False
-
-                ( False, x ) ->
-                    x
-
-                ( x, False ) ->
-                    x
-
-                ( x, y ) ->
-                    Xor x y
-
-        Or form1 form2 ->
-            case ( simplify form1, simplify form2 ) of
-                ( True, _ ) ->
-                    True
-
-                ( _, True ) ->
-                    True
-
-                ( False, x ) ->
-                    x
-
-                ( x, False ) ->
-                    x
-
-                ( x, y ) ->
-                    Or x y
-
-        Impl form1 form2 ->
-            case ( simplify form1, simplify form2 ) of
-                ( False, _ ) ->
-                    True
-
-                ( True, x ) ->
-                    x
-
-                ( x, False ) ->
-                    x
-
-                ( x, y ) ->
-                    Impl x y
-
-        Neg form1 ->
-            case simplify form1 of
-                True ->
-                    False
-
-                False ->
-                    True
-
-                x ->
-                    Neg x
-
-
-functionHeaderToString : List String -> String
-functionHeaderToString vars =
-    List.foldl (\var header -> header ++ var ++ ", ") "f (" vars
-        |> String.dropRight 2
-        |> (\str -> str ++ ")")
-
-
-varsToString : Dict String Basics.Bool -> String
-varsToString vars =
-    let
-        stringVars =
-            String.dropRight 2
-                (List.foldl
-                    (\value string ->
-                        string
-                            ++ (if value then
-                                    "1, "
-
-                                else
-                                    "0, "
-                               )
-                    )
-                    ""
-                    (Dict.values vars)
-                )
-    in
-    "f ( " ++ stringVars ++ " )"
-
-
-formulaToLaTeX : Formula -> String
-formulaToLaTeX formula =
-    prettyPrintToLaTeX <| toString formula
-
-
-prettyPrintToLaTeX : String -> String
-prettyPrintToLaTeX string =
-    string
-        |> String.replace "∧" "\\land"
-        |> String.replace "∨" "\\lor"
-        |> String.replace "¬" "\\lnot "
-        |> String.replace "⊕" "\\oplus"
-        |> String.replace "→" "\\implies"
-        |> String.replace "⊤" "\\top"
-        |> String.replace "⊥" "\\bottom"

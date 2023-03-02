@@ -1,30 +1,27 @@
 module Representations exposing (..)
 
-import ANF exposing (calculateANF, listToANF)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key, replaceUrl)
-import Html exposing (Html, a, button, div, h4, i, input, label, p, span, table, td, text, th, tr)
-import Html.Attributes exposing (class, placeholder, readonly, style, value)
+import Html exposing (Html, button, div, h3, h5, header, i, input, p, span, text)
+import Html.Attributes exposing (attribute, class, placeholder, value)
 import Html.Events exposing (onClick, onInput)
-import List.Extra
-import NormalForms exposing (calculateCNF, calculateDNF, calculateNNF, replaceImplXor)
-import OBDD exposing (computeOBDD)
 import Parser.Advanced exposing (DeadEnd, run)
 import ParserError exposing (parserError)
 import Ports
-import Properties exposing (calculateProperties, calculateTruthTable)
-import Render as R
-import Render.StandardDrawers as RSD
-import Render.StandardDrawers.Attributes as RSDA
 import Render.StandardDrawers.Types exposing (Shape(..))
+import Representations.NormalForms as NormalForms exposing (NormalForm(..))
+import Representations.OBDD as OBDD
+import Representations.Properties as Properties
+import Representations.TruthTable as TruthTable
 import Result.Extra
-import Set exposing (Set)
+import Set
+import Svg.Attributes
 import Url exposing (Url)
-import ViewHelpers exposing (boolToSymbol)
+import ViewHelpers exposing (renderBox, syntax)
 
 
 
--- Model
+-- MODEL
 
 
 type alias Model =
@@ -33,8 +30,9 @@ type alias Model =
     , formulaInputParsed : Result (List (DeadEnd Context Problem)) Formula
     , key : Key
     , url : Url
-    , variableOrder : List String
-    , expandedLaTeX : Set String
+    , expandedLaTeX : Maybe NormalForms.NormalForm
+    , showUsage : Basics.Bool
+    , obdd : OBDD.Model (List (DeadEnd Context Problem))
     }
 
 
@@ -52,33 +50,22 @@ initModel urlString key url =
     , formulaInputParsed = formulaInputParsed
     , key = key
     , url = url
-    , variableOrder = getVariableOrder formulaInputParsed
-    , expandedLaTeX = Set.empty
+    , expandedLaTeX = Nothing
+    , showUsage = Basics.False
+    , obdd = OBDD.initModel formulaInputParsed
     }
 
 
-getVariableOrder : Result (List (DeadEnd Context Problem)) Formula -> List String
-getVariableOrder formulaInputParsed =
-    formulaInputParsed
-        |> Result.map getVariables
-        |> Result.withDefault Set.empty
-        |> Set.toList
 
-
-
--- Update
+-- UPDATE
 
 
 type Msg
     = InputChanged String
-    | VariableOrderChanged Int MoveTo
-    | LaTeXClicked String
+    | NormalFormsMSG NormalForms.Msg
     | Copy String
-
-
-type MoveTo
-    = Front
-    | Back
+    | UsageUpdate
+    | OBDDMsg OBDD.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -96,141 +83,109 @@ update msg model =
                     model.url
 
                 newUrl =
-                    { oldUrl | fragment = Just (reversePreprocessString preprocessedInput) }
+                    { oldUrl | fragment = Just (prettyPrintToURL preprocessedInput) }
             in
-            ( { model | formulaInput = preprocessedInput, formulaInputParsed = formulaInputParsed, url = newUrl, variableOrder = getVariableOrder formulaInputParsed }, replaceUrl model.key (Url.toString newUrl) )
+            ( { model | formulaInput = preprocessedInput, formulaInputParsed = formulaInputParsed, url = newUrl, obdd = OBDD.initModel formulaInputParsed }, replaceUrl model.key (Url.toString newUrl) )
 
-        VariableOrderChanged index direction ->
-            let
-                varibaleToMove =
-                    List.Extra.getAt index model.variableOrder
-
-                maybeVariableOrder =
-                    List.map Just model.variableOrder
-            in
+        NormalFormsMSG (NormalForms.LaTeXClicked normalForm) ->
             ( { model
-                | variableOrder =
-                    (case direction of
-                        Front ->
-                            List.Extra.updateAt index (\_ -> List.Extra.getAt (index + 1) model.variableOrder) maybeVariableOrder
-                                |> List.Extra.updateAt (index + 1) (\_ -> varibaleToMove)
-                                |> List.filterMap identity
+                | expandedLaTeX =
+                    if model.expandedLaTeX == Just normalForm then
+                        Nothing
 
-                        Back ->
-                            List.Extra.updateAt index (\_ -> List.Extra.getAt (index - 1) model.variableOrder) maybeVariableOrder
-                                |> List.Extra.updateAt (index - 1) (\_ -> varibaleToMove)
-                                |> List.filterMap identity
-                    )
-                        |> (\result ->
-                                if List.length result /= List.length model.variableOrder then
-                                    -- If some List.Extra calls were out of reach, the old list is kept. This code should not be reachable.
-                                    model.variableOrder
-
-                                else
-                                    result
-                           )
+                    else
+                        Just normalForm
               }
             , Cmd.none
             )
 
-        LaTeXClicked title ->
-            let
-                newSet =
-                    if Set.member title model.expandedLaTeX then
-                        Set.remove title model.expandedLaTeX
-
-                    else
-                        Set.insert title model.expandedLaTeX
-            in
-            ( { model | expandedLaTeX = newSet }, Cmd.none )
+        NormalFormsMSG (NormalForms.Copy toCopy) ->
+            ( model, Ports.copy toCopy )
 
         Copy toCopy ->
             ( model, Ports.copy toCopy )
 
+        UsageUpdate ->
+            ( { model | showUsage = not model.showUsage }, Cmd.none )
+
+        OBDDMsg obddMsg ->
+            ( { model | obdd = Tuple.first (OBDD.update obddMsg model.obdd) }, Cmd.map (\o -> OBDDMsg o) <| Tuple.second <| OBDD.update obddMsg model.obdd )
 
 
--- View
+
+-- VIEW
 
 
 view : Model -> Html Msg
 view model =
     div []
-        [ div [ class "field" ]
-            [ input
-                [ if Result.Extra.isOk model.formulaInputParsed then
-                    class "is-success"
+        [ div [ class "box" ]
+            [ h3 [ class "title is-4" ] [ text "Representations" ]
 
-                  else
-                    class "is-danger"
-                , placeholder "Formula Input"
-                , value model.formulaInput
-                , onInput InputChanged
-                , class "input avoid-cursor-jump"
+            -- , p [] [ text "Try to type in a formula, like 'a & b'." ]
+            , div [ class "field" ]
+                [ input
+                    [ if Result.Extra.isOk model.formulaInputParsed then
+                        class "is-success"
+
+                      else
+                        class "is-danger"
+                    , placeholder "Formula Input - Try to type something like a & b"
+                    , value model.formulaInput
+                    , onInput InputChanged
+                    , class "input avoid-cursor-jump"
+                    ]
+                    []
+                , case model.formulaInputParsed of
+                    Ok formula ->
+                        p [] [ span [] [ text "Parsed Input: " ], text <| toString formula ]
+
+                    Err x ->
+                        p [ class "help is-danger" ] [ parserError x model.formulaInput ]
                 ]
-                []
-            , case model.formulaInputParsed of
-                Ok formula ->
-                    text (toString formula)
-
-                Err x ->
-                    p [ class "help is-danger" ] [ parserError x model.formulaInput ]
             ]
         , div []
-            (case model.formulaInputParsed of
-                Ok formula ->
-                    [ renderProperties formula
-                    , renderNormalForm "ANF" formula (\f -> listToANF (calculateANF f)) model.expandedLaTeX
-                    , renderNormalForm "NNF" formula calculateNNF model.expandedLaTeX
-                    , renderNormalForm "CNF" formula calculateCNF model.expandedLaTeX
-                    , renderNormalForm "DNF" formula calculateDNF model.expandedLaTeX
-                    , renderTruthTable formula
-                    , renderOBDD formula model.variableOrder
-                    ]
-
-                _ ->
-                    []
+            (usage model.showUsage
+                :: renderRepresentations model
             )
         ]
 
 
-renderProperties : Formula -> Html Msg
-renderProperties formula =
-    let
-        properties =
-            calculateProperties formula
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "Properties" ]
-        , table []
-            [ tr []
-                [ td [] [ text "Tautology" ]
-                , td [] [ text (boolToSymbol properties.tautology) ]
-                ]
-            , tr []
-                [ td [] [ text "Satisfiable" ]
-                , td [] [ text (boolToSymbol properties.satisfiable) ]
-                ]
-            , tr []
-                [ td [] [ text "Contradiction" ]
-                , td [] [ text (boolToSymbol properties.contradiction) ]
+usage : Basics.Bool -> Html Msg
+usage showContent =
+    div [ class "card mb-4" ]
+        (header [ class "card-header" ]
+            [ p [ class "card-header-title" ] [ text "Usage" ]
+            , button [ class "card-header-icon", onClick UsageUpdate, attribute "aria-label" "more options" ]
+                [ span [ class "icon" ]
+                    [ i
+                        [ Svg.Attributes.class
+                            (if showContent then
+                                "fas fa-angle-up"
+
+                             else
+                                "fas fa-angle-down"
+                            )
+                        , attribute "aria-hidden" "true"
+                        ]
+                        []
+                    ]
                 ]
             ]
-        ]
-
-
-renderNormalForm : String -> Formula -> (Formula -> Formula) -> Set String -> Html Msg
-renderNormalForm title formula calculateNormalForm expandedLaTeX =
-    let
-        normalForm =
-            calculateNormalForm formula
-    in
-    div [ class "box content" ]
-        ([ h4 [] [ text title ]
-         , text <| toString normalForm
-         , button [ onClick <| LaTeXClicked title, class "button is-small", style "float" "right" ] [ text "LaTeX" ]
-         ]
-            ++ (if Set.member title expandedLaTeX then
-                    [ renderLaTeX <| toString normalForm ]
+            :: (if showContent then
+                    [ div [ class "card-content columns" ]
+                        [ div [ class "column content" ]
+                            [ h5 [ class "subtitle" ] [ text "Syntax" ]
+                            , syntax
+                            ]
+                        , div [ class "column content" ]
+                            [ h5 [ class "subtitle" ] [ text "Features" ]
+                            , p [] [ text "To process a formula, enter it in the text field. The representations will automatically be updated." ]
+                            , p [] [ text "You can share your input by copying the URL or using the share button in the top right corner." ]
+                            , p [] [ text "It is possible to export outputs in a LaTeX format by clicking the LaTeX button and copying the text." ]
+                            ]
+                        ]
+                    ]
 
                 else
                     []
@@ -238,201 +193,41 @@ renderNormalForm title formula calculateNormalForm expandedLaTeX =
         )
 
 
-renderLaTeX : String -> Html Msg
-renderLaTeX formula =
-    let
-        laTeX =
-            prettyPrintToLaTeX formula
-    in
-    div [ class "field" ]
-        [ label [ class "label" ] [ text "LaTeX to Copy" ]
-        , input [ value laTeX, class "input copy-input", readonly Basics.True ] []
-        , button [ class "button is-small", onClick <| Copy laTeX ] [ text "copy" ]
-        ]
-
-
-renderANF : Formula -> Html Msg
-renderANF formula =
-    let
-        anf =
-            calculateANF formula
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "ANF" ]
-        , text (toString (listToANF anf))
-        ]
-
-
-renderOBDD : Formula -> List String -> Html Msg
-renderOBDD formula variableOrder =
-    div [ class "box content" ]
-        [ h4 [] [ text "OBDD" ]
-        , div [ class "field is-grouped is-grouped-multiline" ]
-            (List.indexedMap
-                (\index variable ->
-                    div [ class "control" ]
-                        [ div [ class "tags has-addons" ]
-                            [ span [ class "tag icon", style "cursor" "pointer", onClick (VariableOrderChanged index Back) ] [ i [ class "fas fa-solid fa-caret-left" ] [] ]
-                            , span [ class "tag" ] [ text variable ]
-                            , span [ class "tag icon", style "cursor" "pointer", onClick (VariableOrderChanged index Front) ] [ i [ class "fas fa-solid fa-caret-right" ] [] ]
-                            ]
-                        ]
-                )
-                variableOrder
-            )
-        , R.draw
-            []
-            [ R.nodeDrawer
-                (RSD.svgDrawNode
-                    [ RSDA.label (\a -> a.label)
-                    , RSDA.shape
-                        (\a ->
-                            if a.id <= 1 then
-                                Box
-
-                            else
-                                Circle
-                        )
+renderRepresentations : Model -> List (Html Msg)
+renderRepresentations model =
+    case model.formulaInputParsed of
+        Ok formula ->
+            [ div [ class "columns" ]
+                [ div [ class "column" ]
+                    [ renderBox <| Properties.renderProperties formula
+                    , renderBox <| mapNormalForm <| NormalForms.renderNormalForm NNF formula model.expandedLaTeX
                     ]
-                )
-            , R.edgeDrawer
-                (RSD.svgDrawEdge
-                    [ RSDA.strokeDashArray
-                        (\a ->
-                            if a.label then
-                                "0"
-
-                            else
-                                "2.5"
-                        )
+                , div [ class "column" ]
+                    [ renderBox <| mapNormalForm <| NormalForms.renderNormalForm CNF formula model.expandedLaTeX
+                    , renderBox <| mapNormalForm <| NormalForms.renderNormalForm DNF formula model.expandedLaTeX
+                    , renderBox <| mapNormalForm <| NormalForms.renderNormalForm ANF formula model.expandedLaTeX
                     ]
-                )
-            , R.style "height: 50vh;"
+                ]
+            , Html.map (\o -> OBDDMsg o) (renderBox (OBDD.view model.obdd))
+            , renderBox <| TruthTable.renderTruthTable formula
             ]
-            (computeOBDD formula variableOrder)
-        ]
+
+        _ ->
+            []
+
+
+mapNormalForm : { title : String, render : Html NormalForms.Msg } -> { title : String, render : Html Msg }
+mapNormalForm input =
+    { title = input.title, render = Html.map (\n -> NormalFormsMSG n) input.render }
 
 
 
--- TruthTable
--- View
+-- OTHER FUNCTIONS
 
 
-renderTruthTable : Formula -> Html Msg
-renderTruthTable formula =
-    let
-        truthTable =
-            calculateTruthTable formula
-    in
-    div [ class "content box" ]
-        [ h4 [] [ text "Truth Table" ]
-        , table [ class "table is-narrow is-striped is-hoverable is-bordered" ]
-            (tr [] (List.map (\variable -> th [] [ text variable ]) truthTable.vars ++ [ th [] [ text "Result" ] ])
-                :: List.map (\row -> tr [] (List.map (\value -> td [] [ prettyPrintBool value ]) (Tuple.first row) ++ [ td [] [ prettyPrintBool (Tuple.second row) ] ]))
-                    truthTable.results
-            )
-        ]
-
-
-prettyPrintBool : Basics.Bool -> Html Msg
-prettyPrintBool bool =
-    if bool then
-        text "T"
-
-    else
-        text "F"
-
-
-
--- NNF
-
-
-renderNNF : Formula -> Html Msg
-renderNNF formula =
-    let
-        nnf =
-            calculateNNF formula
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "NNF" ]
-        , text (toString nnf)
-        ]
-
-
-{-| Replaces Implications (Impl) and Exclusive Ors (Xor) by equal statements using And, Or and Neg.
-This is needed as a preprocessing step for `calculateNNF`.
--}
-replaceImplXor : Formula -> Formula
-replaceImplXor formula =
-    case formula of
-        Neg a ->
-            Neg (replaceImplXor a)
-
-        And a b ->
-            And (replaceImplXor a) (replaceImplXor b)
-
-        Or a b ->
-            Or (replaceImplXor a) (replaceImplXor b)
-
-        Impl a b ->
-            Or (Neg (replaceImplXor a)) (replaceImplXor b)
-
-        Xor a b ->
-            replaceImplXor (Or (And a (Neg b)) (And (Neg a) b))
-
-        a ->
-            a
-
-
-calculateNNF : Formula -> Formula
-calculateNNF formula =
-    case replaceImplXor formula of
-        Neg (Neg a) ->
-            calculateNNF a
-
-        Neg (And a b) ->
-            Or (calculateNNF (Neg a)) (calculateNNF (Neg b))
-
-        Neg (Or a b) ->
-            And (calculateNNF (Neg a)) (calculateNNF (Neg b))
-
-        And a b ->
-            And (calculateNNF a) (calculateNNF b)
-
-        Or a b ->
-            Or (calculateNNF a) (calculateNNF b)
-
-        a ->
-            a
-
-
-
--- CNF
-
-
-renderCNF : Formula -> Html Msg
-renderCNF formula =
-    let
-        cnf =
-            calculateCNF formula
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "CNF" ]
-        , text (toString cnf)
-        ]
-
-
-
--- DNF
-
-
-renderDNF : Formula -> Html Msg
-renderDNF formula =
-    let
-        dnf =
-            calculateDNF formula
-    in
-    div [ class "box content" ]
-        [ h4 [] [ text "DNF" ]
-        , text (toString dnf)
-        ]
+getVariableOrder : Result (List (DeadEnd Context Problem)) Formula -> List String
+getVariableOrder formulaInputParsed =
+    formulaInputParsed
+        |> Result.map getVariables
+        |> Result.withDefault Set.empty
+        |> Set.toList

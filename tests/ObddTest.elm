@@ -6,7 +6,7 @@ import Expect
 import Graph as G
 import IntDict
 import List.Extra
-import OBDD exposing (computeOBDD)
+import Representations.OBDD exposing (computeOBDD)
 import Set
 import Test exposing (Test, describe, test)
 import TestHelp exposing (testFormulas)
@@ -77,14 +77,14 @@ evaluateGraphHelp context graph variables =
         ( 1, _ ) ->
             Ok Basics.True
 
-        ( id, Just value ) ->
+        ( _, Just value ) ->
             IntDict.toList context.outgoing
-                |> List.Extra.find (\( k, v ) -> v == value)
+                |> List.Extra.find (\( _, v ) -> v == value)
                 |> Result.fromMaybe ("Was not able to find the correct edge from node {id: " ++ String.fromInt context.node.id ++ ", label: " ++ context.node.label ++ ".")
                 |> Result.andThen (\( k, _ ) -> Result.fromMaybe "I couldn't find the end node of an edge" (G.get k graph))
                 |> Result.andThen (\c -> evaluateGraphHelp c graph variables)
 
-        ( id, Nothing ) ->
+        ( _, Nothing ) ->
             Err ("Could not find the Variable Value for label " ++ context.node.label ++ ".")
 
 

@@ -1,12 +1,18 @@
-module ANF exposing (..)
+module Representations.ANF exposing (..)
 
 import BoolImpl exposing (..)
-import Set exposing (toList)
+import Set
 
 
 {-| Implementation of the ANF calculation.
 ANFs are represented as a List of Lists of Strings whereas Strings represent Variables, a inner list conjunctions and the outer list Disjunctions.
 -}
+
+
+
+-- OTHER FUNCTIONS
+
+
 calculateANF : Formula -> List (List String)
 calculateANF formula =
     case formula of

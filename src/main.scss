@@ -9,4 +9,21 @@
 @import "../node_modules/bulma/bulma.sass";
 @import "../node_modules/@creativebulma/bulma-tooltip/dist/bulma-tooltip.css";
 @import "../src/my_classes.css";
-@import "../node_modules/animate.css/animate.css"
+@import "../node_modules/animate.css/animate.css";
+
+/*
+  Code taken from https://github.com/jgthms/bulma/issues/1525#issuecomment-350846389
+*/
+@each $name, $pair in $colors {
+  $color: nth($pair, 1);
+  $color-invert: nth($pair, 2);
+  .has-bg-#{$name} {
+      background-color: $color !important;
+      color: $color-invert !important;
+      .title,
+      .subtitle,
+      strong {
+          color: currentColor;
+      }
+  }
+}

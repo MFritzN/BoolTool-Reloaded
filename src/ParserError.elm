@@ -1,10 +1,14 @@
 module ParserError exposing (..)
 
 import BoolImpl exposing (Context, Problem(..))
-import Html exposing (Html, div, section, span, text)
-import Html.Attributes exposing (align, attribute, class, property)
+import Html exposing (Html, div, section, span, table, td, text, tr)
+import Html.Attributes exposing (attribute, class, style)
 import List
 import Parser.Advanced exposing (DeadEnd)
+
+
+
+-- VIEW
 
 
 parserError : List (DeadEnd Context Problem) -> String -> Html a
@@ -59,16 +63,28 @@ parserError list input =
                     case mError of
                         Just error ->
                             div []
-                                [ div [ class "progress-ww" ]
-                                    [ div [ class "wavy" ] [ span [] [ text <| String.dropRight (length - error.column + 1) input ], text <| String.slice (error.column - 1) error.column input, span [] [ text <| String.dropLeft error.column input ] ]
-                                    , div [] [ span [] [], text "⬆", span [] [] ]
-                                    , div [] [ span [] [], text error.message, span [] [] ]
+                                [ table []
+                                    [ tr [ class "wavy keepWhitespace" ]
+                                        [ td [] [ text <| String.dropRight (length - error.column + 1) input ]
+                                        , td [] [ text <| String.slice (error.column - 1) error.column input ]
+                                        , td [] [ text <| String.dropLeft error.column input ]
+                                        ]
+                                    , tr []
+                                        [ td [] []
+                                        , td [] [ span [] [], text "⬆", span [] [] ]
+                                        , td [] []
+                                        ]
                                     ]
+                                , div [] [ span [] [], text error.message, span [] [] ]
                                 ]
 
                         Nothing ->
                             section [] [ text "Invalid Input" ]
                )
+
+
+
+-- OTHER FUNCTIONS
 
 
 addMessageToRecord : DeadEnd Context Problem -> String -> { column : Int, message : String, problem : Problem }

@@ -1,16 +1,43 @@
-module Properties exposing (..)
+module Representations.TruthTable exposing (..)
 
 import BoolImpl exposing (..)
-import Dict exposing (Dict)
-import List exposing (unzip)
+import Dict
+import Html exposing (Html, table, td, text, th, tr)
+import Html.Attributes exposing (class)
 import Set
 
 
-type alias FormulaProperties =
-    { tautology : Bool
-    , satisfiable : Bool
-    , contradiction : Bool
+
+-- VIEW
+
+
+renderTruthTable : Formula -> { title : String, render : Html a }
+renderTruthTable formula =
+    let
+        truthTable =
+            calculateTruthTable formula
+    in
+    { title = "Truth Table"
+    , render =
+        table [ class "table is-narrow is-striped is-hoverable is-bordered" ]
+            (tr [] (List.map (\variable -> th [] [ text variable ]) truthTable.vars ++ [ th [] [ text "Result" ] ])
+                :: List.map (\row -> tr [] (List.map (\value -> td [] [ prettyPrintBool value ]) (Tuple.first row) ++ [ td [] [ prettyPrintBool (Tuple.second row) ] ]))
+                    truthTable.results
+            )
     }
+
+
+prettyPrintBool : Basics.Bool -> Html a
+prettyPrintBool bool =
+    if bool then
+        text "T"
+
+    else
+        text "F"
+
+
+
+-- OTHER FUNCTIONS
 
 
 {-| Inner representation of a Truth Table. `vars` defines the order of the results. `results` is a tuple which first contains the input values sorted according to `vars` and secondly the corresponding result for those input variables.
@@ -22,7 +49,6 @@ type alias TruthTable =
 
 
 {-| Calculates the Truthtable of a given formula in the variable order for the given variables.
-The return value is a
 -}
 calculateTruthTable : Formula -> TruthTable
 calculateTruthTable formula =
@@ -33,7 +59,7 @@ calculateTruthTable formula =
     { vars = Dict.keys variables, results = ( Dict.values variables, evaluateUnsafe formula variables ) :: calculateTruthTableHelp formula variables }
 
 
-calculateTruthTableHelp : Formula -> Dict String Basics.Bool -> List ( List Basics.Bool, Basics.Bool )
+calculateTruthTableHelp : Formula -> Dict.Dict String Basics.Bool -> List ( List Basics.Bool, Basics.Bool )
 calculateTruthTableHelp formula variables =
     case iterateVariables variables of
         Nothing ->
@@ -41,20 +67,3 @@ calculateTruthTableHelp formula variables =
 
         Just newVariables ->
             ( Dict.values newVariables, evaluateUnsafe formula newVariables ) :: calculateTruthTableHelp formula newVariables
-
-
-calculateProperties : Formula -> FormulaProperties
-calculateProperties formula =
-    let
-        truthTable =
-            calculateTruthTable formula
-
-        results =
-            truthTable.results
-                |> unzip
-                |> Tuple.second
-    in
-    { tautology = not (List.any (\a -> not a) results)
-    , satisfiable = List.any (\a -> a) results
-    , contradiction = not (List.any (\a -> a) results)
-    }

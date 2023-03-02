@@ -1,30 +1,28 @@
 module Adequacy exposing (..)
 
-import ANF
+import Adequacy.Affinity exposing (existsIsNotAffine, isNotAffine)
+import Adequacy.Monotonicity exposing (exsistsIsNotMonotone, renderMonotone)
+import Adequacy.SelfDualness exposing (exsistsIsNotSelfDual, renderSelfDualness)
 import BoolImpl exposing (..)
 import Browser.Navigation exposing (Key)
 import Dict exposing (..)
-import Html exposing (Html, button, div, input, p, span, table, td, text, th, tr)
+import Html exposing (Html, button, div, h4, h5, header, i, input, p, span, table, td, text, th, tr)
 import Html.Attributes exposing (..)
 import Html.Events exposing (keyCode, on, onClick, onInput)
 import Json.Decode as Json exposing (string)
 import List.Extra
-import Maybe
 import Parser.Advanced exposing (DeadEnd, run, variable)
 import ParserError exposing (parserError)
+import Representations.ANF as ANF
 import Result.Extra
 import Set
+import Svg.Attributes
 import Url exposing (Url)
-import ViewHelpers exposing (boolToSymbol, maybeToSymbol)
+import ViewHelpers exposing (boolToSymbol, syntax)
 
 
 
--- Model
-
-
-type InputError
-    = ParserFailed Int (List (DeadEnd Context Problem))
-    | FoundDuplicateInString Formula
+-- MODEL
 
 
 type alias Model =
@@ -33,6 +31,7 @@ type alias Model =
     , setInputParsed : Result (Html Msg) (List Formula)
     , key : Key
     , url : Url
+    , showUsage : Basics.Bool
     }
 
 
@@ -43,42 +42,19 @@ initModel string key url =
     , setInputParsed = parseInputSet (preprocessString string)
     , key = key
     , url = url
+    , showUsage = Basics.False
     }
 
 
-parseInputSet : String -> Result (Html Msg) (List Formula)
-parseInputSet input =
-    input
-        |> String.split ","
-        |> List.map (\stringFormula -> ( run formula_p stringFormula, stringFormula ))
-        |> parseInputSetHelp [] 0
 
-
-parseInputSetHelp : List Formula -> Int -> List ( Result (List (DeadEnd Context Problem)) Formula, String ) -> Result (Html Msg) (List Formula)
-parseInputSetHelp returnList counter inputList =
-    case inputList of
-        [] ->
-            Ok returnList
-
-        ( Err error, string ) :: _ ->
-            Err (parserError error string)
-
-        ( Ok a, _ ) :: tail ->
-            if List.any (equals a) returnList then
-                Err <| text <| "There is a duplicate in here: " ++ toString a
-
-            else
-                parseInputSetHelp (returnList ++ [ a ]) (counter + 1) tail
-
-
-
--- Update
+-- UPDATE
 
 
 type Msg
     = InputChanged String
     | AddToSet
     | RemoveFromSet Int
+    | UsageUpdate
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -98,7 +74,7 @@ update msg model =
                             model.list ++ List.filter (\inputFormula -> not (List.any (equals inputFormula) model.list)) inputList
 
                         newUrl =
-                            { oldUrl | fragment = Just (reversePreprocessString (functionSetToString newSet)) }
+                            { oldUrl | fragment = Just (prettyPrintToURL (functionSetToString newSet)) }
                     in
                     ( { model | list = newSet, setInput = "", setInputParsed = parseInputSet "", url = newUrl }, Browser.Navigation.replaceUrl model.key (Url.toString newUrl) )
 
@@ -108,15 +84,103 @@ update msg model =
         RemoveFromSet index ->
             ( { model | list = List.Extra.removeAt index model.list }, Cmd.none )
 
+        UsageUpdate ->
+            ( { model | showUsage = not model.showUsage }, Cmd.none )
 
 
--- View
+
+-- VIEW
+
+
+view : Model -> Html Msg
+view model =
+    div []
+        [ div [ class "box" ]
+            [ h4 [ class "title is-4" ] [ text "Adequacy" ]
+            , div [ onEnter AddToSet ]
+                [ div [ class "field has-addons" ]
+                    [ div [ class "control is-expanded" ]
+                        [ input
+                            [ if Result.Extra.isOk model.setInputParsed then
+                                class ""
+
+                              else
+                                class "is-danger"
+                            , placeholder <|
+                                "Function Input"
+                                    ++ (if List.isEmpty model.list then
+                                            "- Try something like a & b, ~a"
+
+                                        else
+                                            ""
+                                       )
+                            , value model.setInput
+                            , onInput InputChanged
+                            , class "input avoid-cursor-jump level"
+                            ]
+                            []
+                        ]
+                    , div [ class "control" ] [ button [ onClick AddToSet, class "button" ] [ text "Add to Set" ] ]
+                    ]
+                , case model.setInputParsed of
+                    Ok list ->
+                        p [] [ span [] [ text "Parsed Input: " ], text <| functionSetToString list ]
+
+                    Err x ->
+                        p [ class "help is-danger" ] [ x ]
+                ]
+            ]
+        , usage model.showUsage
+        , renderPostConditions model.list
+        ]
 
 
 renderFunctionSet : List Formula -> Html Msg
 renderFunctionSet list =
     div [ class "tags are-normal box" ]
         (List.indexedMap (\index formula -> span [ class "tag" ] [ text (BoolImpl.toString formula), button [ onClick (RemoveFromSet index), class "delete" ] [] ]) list)
+
+
+usage : Basics.Bool -> Html Msg
+usage showContent =
+    div [ class "card mb-4" ]
+        (header [ class "card-header" ]
+            [ p [ class "card-header-title" ] [ text "Usage" ]
+            , button [ class "card-header-icon", onClick UsageUpdate, attribute "aria-label" "more options" ]
+                [ span [ class "icon" ]
+                    [ i
+                        [ Svg.Attributes.class
+                            (if showContent then
+                                "fas fa-angle-up"
+
+                             else
+                                "fas fa-angle-down"
+                            )
+                        , attribute "aria-hidden" "true"
+                        ]
+                        []
+                    ]
+                ]
+            ]
+            :: (if showContent then
+                    [ div [ class "card-content columns" ]
+                        [ div [ class "column content" ]
+                            [ h5 [ class "subtitle" ] [ text "Syntax" ]
+                            , syntax
+                            ]
+                        , div [ class "column content" ]
+                            [ h5 [ class "subtitle" ] [ text "Features" ]
+                            , p [] [ text "To add a function, enter it in the text field. Add it by clicking the button. You can add multiple functions by seperating them with a comma." ]
+                            , p [] [ text "The last row of the table will become green if the set of functions is adequat." ]
+                            , p [] [ text "You can share your input by copying the URL or using the share button in the top right corner." ]
+                            ]
+                        ]
+                    ]
+
+                else
+                    []
+               )
+        )
 
 
 renderPostConditions : List Formula -> Html Msg
@@ -127,7 +191,7 @@ renderPostConditions list =
     else
         table [ class "table is-narrow box" ]
             (tr []
-                [ th [] [ text "Formula" ]
+                [ th [] [ text "Function" ]
                 , th [] [ text "f (0,...,0) ≠ 0: " ]
                 , th [] [ text "f (1,...,1) ≠ 1: " ]
                 , th [] [ text "not monotone:" ]
@@ -146,13 +210,7 @@ renderPostConditions list =
                             , td []
                                 [ renderMonotone formula ]
                             , td []
-                                [ case isNotSelfDual formula of
-                                    Just foundFormula ->
-                                        span [ attribute "data-tooltip" (notSelfDualTooltip foundFormula) ] [ text "✓" ]
-
-                                    Nothing ->
-                                        text "✕"
-                                ]
+                                [ renderSelfDualness formula ]
                             , td []
                                 [ span [ attribute "data-tooltip" ("ANF: " ++ (toString <| ANF.listToANF <| ANF.calculateANF formula)) ] [ text (boolToSymbol (isNotAffine formula)) ] ]
                             , td []
@@ -160,7 +218,15 @@ renderPostConditions list =
                             ]
                     )
                     list
-                ++ [ tr [ class "is-selected" ]
+                ++ [ tr
+                        [ class
+                            (if isAdequat list then
+                                "has-bg-success"
+
+                             else
+                                "has-bg-warning"
+                            )
+                        ]
                         [ td [] [ span [ class "tag" ] [ text "exists" ] ]
                         , td []
                             [ text (boolToSymbol (existsAllInputNotEqInput list Basics.False)) ]
@@ -179,46 +245,6 @@ renderPostConditions list =
             )
 
 
-view : Model -> Html Msg
-view model =
-    div [ class "field" ]
-        [ div [ onEnter AddToSet, class "box" ]
-            [ input
-                [ if Result.Extra.isOk model.setInputParsed then
-                    class ""
-
-                  else
-                    class "is-danger"
-                , placeholder "Function Input"
-                , value model.setInput
-                , onInput InputChanged
-                , class "input avoid-cursor-jump"
-                ]
-                []
-            , case model.setInputParsed of
-                Ok list ->
-                    text <| functionSetToString list
-
-                Err x ->
-                    p [ class "help is-danger" ] [ x ]
-            , button [ onClick AddToSet, class "button" ] [ text "Add to Set" ]
-            ]
-
-        --, renderFunctionSet model.list
-        , renderPostConditions model.list
-        ]
-
-
-renderMonotone : Formula -> Html msg
-renderMonotone formula =
-    case isNotMontone formula of
-        Nothing ->
-            text <| boolToSymbol Basics.False
-
-        Just vars ->
-            span [ attribute "data-tooltip" ((String.dropRight 2 <| List.foldl (\var str -> str ++ var ++ ", ") "f (" vars) ++ ") = x̄") ] [ text <| boolToSymbol Basics.True ]
-
-
 onEnter : Msg -> Html.Attribute Msg
 onEnter msg =
     let
@@ -232,11 +258,6 @@ onEnter msg =
     on "keydown" (Json.andThen isEnter keyCode)
 
 
-notSelfDualTooltip : Dict String Bool -> String
-notSelfDualTooltip vars =
-    varsToString vars ++ " = " ++ varsToString (Dict.map (\_ v -> not v) vars)
-
-
 functionSetToString : List Formula -> String
 functionSetToString list =
     List.foldl (\formula string -> string ++ ", " ++ toString formula) "" list
@@ -244,7 +265,44 @@ functionSetToString list =
 
 
 
--- Logic
+-- OTHER FUNCTIONS
+
+
+parseInputSet : String -> Result (Html Msg) (List Formula)
+parseInputSet input =
+    input
+        |> String.split ","
+        |> (\list ->
+                if List.any (\string -> String.length string == 0) list then
+                    Err (text "Input contains an empty function")
+
+                else
+                    Ok list
+           )
+        |> (\result -> Result.map (List.map (\stringFormula -> ( run formula_p stringFormula, stringFormula ))) result)
+        |> (\result -> Result.andThen (\list -> parseInputSetHelp [] 0 list) result)
+
+
+parseInputSetHelp : List Formula -> Int -> List ( Result (List (DeadEnd Context Problem)) Formula, String ) -> Result (Html Msg) (List Formula)
+parseInputSetHelp returnList counter inputList =
+    case inputList of
+        [] ->
+            Ok returnList
+
+        ( Err error, string ) :: _ ->
+            Err (parserError error string)
+
+        ( Ok a, _ ) :: tail ->
+            if List.any (equals a) returnList then
+                Err <| text <| "There is a duplicate in here: " ++ toString a
+
+            else
+                parseInputSetHelp (returnList ++ [ a ]) (counter + 1) tail
+
+
+isAdequat : List Formula -> Basics.Bool
+isAdequat list =
+    List.all (\a -> a) [ existsAllInputNotEqInput list Basics.False, existsAllInputNotEqInput list Basics.True, exsistsIsNotMonotone list, existsIsNotAffine list, exsistsIsNotSelfDual list ]
 
 
 {-| Check if any of the boolean functions does not result in x for all inputs x: ∃formula ∈ List such that f (x,...,x) ≠ x
@@ -265,128 +323,3 @@ existsAllInputNotEqInput list x =
 allInputNotEqInput : Formula -> Basics.Bool -> Basics.Bool
 allInputNotEqInput formula x =
     evaluateUnsafe formula (Dict.fromList (List.map (\variable -> ( variable, x )) (Set.toList (getVariables formula)))) /= x
-
-
-
--- is not montone
-
-
-exsistsIsNotMonotone : List Formula -> Basics.Bool
-exsistsIsNotMonotone list =
-    List.any
-        (\el ->
-            case isNotMontone el of
-                Just _ ->
-                    Basics.True
-
-                Nothing ->
-                    Basics.False
-        )
-        list
-
-
-isNotMontone : Formula -> Maybe (List String)
-isNotMontone formula =
-    let
-        variables =
-            Dict.fromList (List.map (\variable -> ( variable, Basics.False )) (Set.toList (getVariables formula)))
-    in
-    isNotMonotoneHelp formula variables (Dict.keys variables)
-
-
-isNotMonotoneHelp : Formula -> Dict String Bool -> List String -> Maybe (List String)
-isNotMonotoneHelp formula variables remainingVariables =
-    case remainingVariables of
-        [] ->
-            iterateVariables variables
-                |> Maybe.andThen (\newVariables -> isNotMonotoneHelp formula newVariables (Dict.keys newVariables))
-
-        currentVar :: remainingVariablesTail ->
-            if not (BoolImpl.evaluateUnsafe formula (Dict.insert currentVar Basics.True variables)) && BoolImpl.evaluateUnsafe formula (Dict.insert currentVar Basics.False variables) then
-                variables
-                    |> Dict.map
-                        (\_ v ->
-                            if v then
-                                "1"
-
-                            else
-                                "0"
-                        )
-                    |> Dict.insert currentVar "x"
-                    |> Dict.values
-                    |> Just
-
-            else
-                isNotMonotoneHelp formula variables remainingVariablesTail
-
-
-
--- is not self-dual
-
-
-exsistsIsNotSelfDual : List Formula -> Basics.Bool
-exsistsIsNotSelfDual list =
-    List.any
-        (\formula ->
-            case isNotSelfDual formula of
-                Nothing ->
-                    Basics.False
-
-                Just _ ->
-                    Basics.True
-        )
-        list
-
-
-isNotSelfDual : Formula -> Maybe (Dict String Bool)
-isNotSelfDual formula =
-    let
-        variables =
-            Dict.fromList (List.map (\variable -> ( variable, Basics.False )) (Set.toList (getVariables formula)))
-    in
-    isNotSelfDualHelp formula variables
-
-
-isNotSelfDualHelp : Formula -> Dict String Bool -> Maybe (Dict String Bool)
-isNotSelfDualHelp formula variables =
-    let
-        inverse_variables =
-            Dict.map (\_ v -> not v) variables
-    in
-    if evaluateUnsafe formula variables == evaluateUnsafe formula inverse_variables then
-        Just variables
-
-    else
-        case iterateVariables variables of
-            Nothing ->
-                Nothing
-
-            Just newVariables ->
-                isNotSelfDualHelp formula newVariables
-
-
-
--- is not affine
-
-
-existsIsNotAffine : List Formula -> Basics.Bool
-existsIsNotAffine formula =
-    List.any isNotAffine formula
-
-
-isNotAffine : Formula -> Basics.Bool
-isNotAffine formula =
-    ANF.calculateANF formula
-        |> List.map List.length
-        |> List.maximum
-        |> Maybe.andThen (\x -> Just (x > 1))
-        |> Maybe.withDefault Basics.False
-
-
-
--- adequacy
-
-
-isAdequat : List Formula -> Basics.Bool
-isAdequat list =
-    List.all (\a -> a) [ existsAllInputNotEqInput list Basics.False, existsAllInputNotEqInput list Basics.True, exsistsIsNotMonotone list, existsIsNotAffine list, exsistsIsNotSelfDual list ]

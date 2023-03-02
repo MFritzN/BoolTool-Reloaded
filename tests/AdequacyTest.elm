@@ -1,6 +1,9 @@
 module AdequacyTest exposing (..)
 
-import Adequacy exposing (existsAllInputNotEqInput, existsIsNotAffine, exsistsIsNotMonotone, exsistsIsNotSelfDual)
+import Adequacy exposing (existsAllInputNotEqInput)
+import Adequacy.Affinity exposing (existsIsNotAffine)
+import Adequacy.Monotonicity exposing (exsistsIsNotMonotone)
+import Adequacy.SelfDualness exposing (exsistsIsNotSelfDual)
 import BoolImpl exposing (..)
 import Expect exposing (..)
 import Test exposing (Test, describe, test)
