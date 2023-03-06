@@ -1,5 +1,7 @@
 # BoolTool-Reloaded
-Tool for showing multiple representations of a boolean formula as well as checking the adequacy of a set of functions. Bachelor Thesis.
+Tool for showing multiple representations of a boolean formula as well as checking the adequacy of a set of functions.
+Main part of a bachelor thesis project at the University of Innsbruck.
+Please also refer to the thesis for documentation.
 
 This tool uses [create-elm-app](https://github.com/halfzebra/create-elm-app) for a dev Server and compilation.
 
