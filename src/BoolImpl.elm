@@ -249,9 +249,13 @@ topOperaterIsEqual formula1 formula2 =
 
 functionHeaderToString : List String -> String
 functionHeaderToString vars =
-    List.foldl (\var header -> header ++ var ++ ", ") "f (" vars
-        |> String.dropRight 2
-        |> (\str -> str ++ ")")
+    if List.isEmpty vars then
+        "f ()"
+
+    else
+        List.foldl (\var header -> header ++ var ++ ", ") "f (" vars
+            |> String.dropRight 2
+            |> (\str -> str ++ ")")
 
 
 varsToString : Dict String Basics.Bool -> String
