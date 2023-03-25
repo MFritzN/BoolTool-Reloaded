@@ -56,6 +56,9 @@ calculateANF formula =
         Impl x y ->
             calculateANF (Or (Neg x) y)
 
+        Equal x y ->
+            calculateANF (And (Impl x y) (Impl y x))
+
 
 polishANF : List (List String) -> List (List String)
 polishANF list =
@@ -147,3 +150,10 @@ splitANFAndHelp formula =
 sortANFList : List (List String) -> List (List String)
 sortANFList list =
     List.sortBy (\a -> String.fromInt (List.length a) ++ List.foldr (++) "" a) list
+
+
+postProcessANF : String -> String
+postProcessANF input =
+    input
+        |> String.replace "∧" "⋅"
+        |> String.replace "∨" "+"
