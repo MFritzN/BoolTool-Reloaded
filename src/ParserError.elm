@@ -54,7 +54,7 @@ parserError list input =
                             Just <| addMessageToRecord error "I was expecting an operator here."
 
                         ExpectingEnd ->
-                            Just <| addMessageToRecord error "I was done here and did not expect anymore. Maybe you forgot an operator?"
+                            Just <| addMessageToRecord error "I was done here and did not expect any more. Maybe you forgot an operator?"
 
                         _ ->
                             Nothing

@@ -24,6 +24,7 @@ type Formula
     | Neg Formula
     | Impl Formula Formula
     | Var String
+    | Equiv Formula Formula
 
 
 type alias MyParser a =
@@ -57,22 +58,25 @@ precedence : Formula -> Int
 precedence operator =
     case operator of
         And _ _ ->
-            3
-
-        Impl _ _ ->
-            1
-
-        Xor _ _ ->
-            2
-
-        Or _ _ ->
-            3
-
-        Neg _ ->
             4
 
-        _ ->
+        Impl _ _ ->
+            2
+
+        Xor _ _ ->
+            3
+
+        Or _ _ ->
+            4
+
+        Neg _ ->
             5
+
+        Equiv _ _ ->
+            1
+
+        _ ->
+            6
 
 
 typeVar : Parser c Problem String
@@ -80,7 +84,7 @@ typeVar =
     variable
         { start = Char.isLower
         , inner = \c -> Char.isAlphaNum c
-        , reserved = Set.fromList [ "true", "false" ]
+        , reserved = Set.fromList [ "true", "false", "T", "F" ]
         , expecting = ExpectingVariable
         }
 
@@ -115,6 +119,7 @@ boolExpression =
                 , infixRight (precedence (Or True True)) (symbol <| Parser.Advanced.Token "∨" ExpectingVariable) Or
                 , infixRight (precedence (Xor True True)) (symbol <| Parser.Advanced.Token "⊕" ExpectingVariable) Xor
                 , infixRight (precedence (Impl True True)) (symbol <| Parser.Advanced.Token "→" ExpectingVariable) Impl
+                , infixRight (precedence (Equiv True True)) (symbol <| Parser.Advanced.Token "↔" ExpectingVariable) Equiv
                 ]
             , spaces = Parser.Advanced.spaces
             }
@@ -130,6 +135,8 @@ preprocessString string =
     string
         |> String.replace "\\wedge" "∧"
         |> String.replace "&" "∧"
+        |> String.replace "+" "∨"
+        |> String.replace "⋅" "∧"
         |> String.replace "\\land" "∧"
         |> String.replace "\\vee" "∨"
         |> String.replace "\\lor" "∨"
@@ -139,16 +146,19 @@ preprocessString string =
         |> String.replace "\\lnot" "¬"
         |> String.replace "!" "¬"
         |> String.replace "^" "⊕"
+        |> String.replace "<->" "↔"
+        |> String.replace "<→" "↔"
         |> String.replace "->" "→"
         |> String.replace "\\rightarrow" "→"
         |> String.replace "\\implies" "→"
         |> String.replace "\\oplus" "⊕"
         |> String.replace "\\top" "⊤"
         |> String.replace "\\bot" "⊥"
-        |> String.replace "True" "⊤"
-        |> String.replace "False" "⊥"
+        |> String.replace "T" "⊤"
+        |> String.replace "F" "⊥"
         |> String.replace "true" "⊤"
         |> String.replace "false" "⊥"
+        |> String.replace "\\leftrightarrow" "↔"
 
 
 
@@ -179,6 +189,9 @@ toString formula =
 
             else
                 "¬" ++ toString r_form
+
+        Equiv lForm rForm ->
+            toStringHelp "↔" (Equiv lForm rForm) lForm rForm
 
         Impl lForm rForm ->
             toStringHelp "→" (Impl lForm rForm) lForm rForm
@@ -218,6 +231,9 @@ operatorIsAssociative formula =
         Xor _ _ ->
             Basics.True
 
+        Equiv _ _ ->
+            Basics.True
+
         _ ->
             Basics.False
 
@@ -241,6 +257,9 @@ topOperaterIsEqual formula1 formula2 =
             Basics.True
 
         ( Neg _, Neg _ ) ->
+            Basics.True
+
+        ( Equiv _ _, Equiv _ _ ) ->
             Basics.True
 
         _ ->
@@ -290,6 +309,8 @@ prettyPrintToLaTeX string =
         |> String.replace "→" "\\implies"
         |> String.replace "⊤" "\\top"
         |> String.replace "⊥" "\\bot"
+        |> String.replace "↔" "\\leftrightarrow"
+        |> String.replace "⋅" "\\cdot"
 
 
 {-| Remove unicode symbols from strings. This is mainly needed to save formulas into the URL.
@@ -337,6 +358,9 @@ equals form1 form2 =
         ( Xor form11 form12, Xor form21 form22 ) ->
             equals form11 form21 && equals form12 form22
 
+        ( Equiv form11 form12, Equiv form21 form22 ) ->
+            equals form11 form21 && equals form12 form22
+
         ( Neg form11, Neg form21 ) ->
             equals form11 form21
 
@@ -366,6 +390,9 @@ getVariables formula =
             Set.union (getVariables subFormA) (getVariables subFormB)
 
         Xor subFormA subFormB ->
+            Set.union (getVariables subFormA) (getVariables subFormB)
+
+        Equiv subFormA subFormB ->
             Set.union (getVariables subFormA) (getVariables subFormB)
 
         -- True & False
@@ -398,6 +425,9 @@ evaluateSafe formula variables =
 
         And subFormA subFormB ->
             Result.map2 (&&) (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
+
+        Equiv subFormA subFormB ->
+            Result.map2 (==) (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
         Neg subForm ->
             Result.map not (evaluateSafe subForm variables)

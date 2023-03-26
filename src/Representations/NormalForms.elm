@@ -35,27 +35,42 @@ renderNormalForm normalForm formula expandedLaTeX =
                     { title = "Negation Normal Form", normaForm = calculateNNF formula }
 
                 CNF ->
-                    { title = "Conjunction Normal Form", normaForm = calculateCNF formula }
+                    { title = "Conjunctive Normal Form", normaForm = calculateCNF formula }
 
                 DNF ->
-                    { title = "Disjunction Normal Form", normaForm = calculateDNF formula }
+                    { title = "Disjunctive Normal Form", normaForm = calculateDNF formula }
 
                 ANF ->
                     { title = "Algebaric Normal Form", normaForm = ANF.listToANF <| calculateANF formula }
     in
     { title = caseResult.title
     , render =
-        div []
-            ([ text <| toString caseResult.normaForm
-             , button [ onClick <| LaTeXClicked normalForm, class "button is-small", style "float" "right" ] [ text "LaTeX" ]
-             ]
-                ++ (if expandedLaTeX == Just normalForm then
-                        [ renderLaTeX <| toString caseResult.normaForm ]
+        case normalForm of
+            ANF ->
+                div []
+                    ([ text <| ANF.postProcessANF <| toString caseResult.normaForm
+                     , button [ onClick <| LaTeXClicked normalForm, class "button is-small", style "float" "right" ] [ text "LaTeX" ]
+                     ]
+                        ++ (if expandedLaTeX == Just normalForm then
+                                [ renderLaTeX <| ANF.postProcessANF <| toString caseResult.normaForm ]
 
-                    else
-                        []
-                   )
-            )
+                            else
+                                []
+                           )
+                    )
+
+            _ ->
+                div []
+                    ([ text <| toString caseResult.normaForm
+                     , button [ onClick <| LaTeXClicked normalForm, class "button is-small", style "float" "right" ] [ text "LaTeX" ]
+                     ]
+                        ++ (if expandedLaTeX == Just normalForm then
+                                [ renderLaTeX <| toString caseResult.normaForm ]
+
+                            else
+                                []
+                           )
+                    )
     }
 
 
@@ -130,23 +145,26 @@ distrDNF formula1 formula2 =
 {-| Replaces Implications (Impl) and Exclusive Ors (Xor) by equal statements using And, Or and Neg.
 This is needed as a preprocessing step for `calculateNNF`.
 -}
-replaceImplXor : Formula -> Formula
-replaceImplXor formula =
+replaceImplXorEquiv : Formula -> Formula
+replaceImplXorEquiv formula =
     case replaceBotTop formula of
         Neg a ->
-            Neg (replaceImplXor a)
+            Neg (replaceImplXorEquiv a)
 
         And a b ->
-            And (replaceImplXor a) (replaceImplXor b)
+            And (replaceImplXorEquiv a) (replaceImplXorEquiv b)
 
         Or a b ->
-            Or (replaceImplXor a) (replaceImplXor b)
+            Or (replaceImplXorEquiv a) (replaceImplXorEquiv b)
 
         Impl a b ->
-            Or (Neg (replaceImplXor a)) (replaceImplXor b)
+            Or (Neg (replaceImplXorEquiv a)) (replaceImplXorEquiv b)
 
         Xor a b ->
-            replaceImplXor (Or (And a (Neg b)) (And (Neg a) b))
+            replaceImplXorEquiv (Or (And a (Neg b)) (And (Neg a) b))
+
+        Equiv a b ->
+            replaceImplXorEquiv (And (Impl a b) (Impl b a))
 
         a ->
             a
@@ -234,13 +252,30 @@ replaceBotTop formula =
                 ( x, y ) ->
                     Impl x y
 
+        Equiv a b ->
+            case ( replaceBotTop a, replaceBotTop b ) of
+                ( BoolImpl.False, x ) ->
+                    replaceBotTop (Neg x)
+
+                ( BoolImpl.True, x ) ->
+                    x
+
+                ( x, BoolImpl.False ) ->
+                    replaceBotTop <| Neg x
+
+                ( x, BoolImpl.True ) ->
+                    x
+
+                ( x, y ) ->
+                    Equiv x y
+
         a ->
             a
 
 
 calculateNNF : Formula -> Formula
 calculateNNF formula =
-    case replaceImplXor formula of
+    case replaceImplXorEquiv formula of
         Neg (Neg a) ->
             calculateNNF a
 
