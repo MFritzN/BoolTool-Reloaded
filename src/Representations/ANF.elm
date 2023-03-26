@@ -56,7 +56,7 @@ calculateANF formula =
         Impl x y ->
             calculateANF (Or (Neg x) y)
 
-        Equal x y ->
+        Equiv x y ->
             calculateANF (And (Impl x y) (Impl y x))
 
 

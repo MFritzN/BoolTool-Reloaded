@@ -24,7 +24,7 @@ type Formula
     | Neg Formula
     | Impl Formula Formula
     | Var String
-    | Equal Formula Formula
+    | Equiv Formula Formula
 
 
 type alias MyParser a =
@@ -72,7 +72,7 @@ precedence operator =
         Neg _ ->
             5
 
-        Equal _ _ ->
+        Equiv _ _ ->
             1
 
         _ ->
@@ -119,7 +119,7 @@ boolExpression =
                 , infixRight (precedence (Or True True)) (symbol <| Parser.Advanced.Token "∨" ExpectingVariable) Or
                 , infixRight (precedence (Xor True True)) (symbol <| Parser.Advanced.Token "⊕" ExpectingVariable) Xor
                 , infixRight (precedence (Impl True True)) (symbol <| Parser.Advanced.Token "→" ExpectingVariable) Impl
-                , infixRight (precedence (Equal True True)) (symbol <| Parser.Advanced.Token "↔" ExpectingVariable) Equal
+                , infixRight (precedence (Equiv True True)) (symbol <| Parser.Advanced.Token "↔" ExpectingVariable) Equiv
                 ]
             , spaces = Parser.Advanced.spaces
             }
@@ -190,8 +190,8 @@ toString formula =
             else
                 "¬" ++ toString r_form
 
-        Equal lForm rForm ->
-            toStringHelp "↔" (Equal lForm rForm) lForm rForm
+        Equiv lForm rForm ->
+            toStringHelp "↔" (Equiv lForm rForm) lForm rForm
 
         Impl lForm rForm ->
             toStringHelp "→" (Impl lForm rForm) lForm rForm
@@ -231,7 +231,7 @@ operatorIsAssociative formula =
         Xor _ _ ->
             Basics.True
 
-        Equal _ _ ->
+        Equiv _ _ ->
             Basics.True
 
         _ ->
@@ -259,7 +259,7 @@ topOperaterIsEqual formula1 formula2 =
         ( Neg _, Neg _ ) ->
             Basics.True
 
-        ( Equal _ _, Equal _ _ ) ->
+        ( Equiv _ _, Equiv _ _ ) ->
             Basics.True
 
         _ ->
@@ -358,7 +358,7 @@ equals form1 form2 =
         ( Xor form11 form12, Xor form21 form22 ) ->
             equals form11 form21 && equals form12 form22
 
-        ( Equal form11 form12, Equal form21 form22 ) ->
+        ( Equiv form11 form12, Equiv form21 form22 ) ->
             equals form11 form21 && equals form12 form22
 
         ( Neg form11, Neg form21 ) ->
@@ -392,7 +392,7 @@ getVariables formula =
         Xor subFormA subFormB ->
             Set.union (getVariables subFormA) (getVariables subFormB)
 
-        Equal subFormA subFormB ->
+        Equiv subFormA subFormB ->
             Set.union (getVariables subFormA) (getVariables subFormB)
 
         -- True & False
@@ -426,7 +426,7 @@ evaluateSafe formula variables =
         And subFormA subFormB ->
             Result.map2 (&&) (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
-        Equal subFormA subFormB ->
+        Equiv subFormA subFormB ->
             Result.map2 (==) (evaluateSafe subFormA variables) (evaluateSafe subFormB variables)
 
         Neg subForm ->

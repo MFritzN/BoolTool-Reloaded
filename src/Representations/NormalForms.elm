@@ -145,26 +145,26 @@ distrDNF formula1 formula2 =
 {-| Replaces Implications (Impl) and Exclusive Ors (Xor) by equal statements using And, Or and Neg.
 This is needed as a preprocessing step for `calculateNNF`.
 -}
-replaceImplXorEqual : Formula -> Formula
-replaceImplXorEqual formula =
+replaceImplXorEquiv : Formula -> Formula
+replaceImplXorEquiv formula =
     case replaceBotTop formula of
         Neg a ->
-            Neg (replaceImplXorEqual a)
+            Neg (replaceImplXorEquiv a)
 
         And a b ->
-            And (replaceImplXorEqual a) (replaceImplXorEqual b)
+            And (replaceImplXorEquiv a) (replaceImplXorEquiv b)
 
         Or a b ->
-            Or (replaceImplXorEqual a) (replaceImplXorEqual b)
+            Or (replaceImplXorEquiv a) (replaceImplXorEquiv b)
 
         Impl a b ->
-            Or (Neg (replaceImplXorEqual a)) (replaceImplXorEqual b)
+            Or (Neg (replaceImplXorEquiv a)) (replaceImplXorEquiv b)
 
         Xor a b ->
-            replaceImplXorEqual (Or (And a (Neg b)) (And (Neg a) b))
+            replaceImplXorEquiv (Or (And a (Neg b)) (And (Neg a) b))
 
-        Equal a b ->
-            replaceImplXorEqual (And (Impl a b) (Impl b a))
+        Equiv a b ->
+            replaceImplXorEquiv (And (Impl a b) (Impl b a))
 
         a ->
             a
@@ -252,7 +252,7 @@ replaceBotTop formula =
                 ( x, y ) ->
                     Impl x y
 
-        Equal a b ->
+        Equiv a b ->
             case ( replaceBotTop a, replaceBotTop b ) of
                 ( BoolImpl.False, x ) ->
                     replaceBotTop (Neg x)
@@ -267,7 +267,7 @@ replaceBotTop formula =
                     x
 
                 ( x, y ) ->
-                    Equal x y
+                    Equiv x y
 
         a ->
             a
@@ -275,7 +275,7 @@ replaceBotTop formula =
 
 calculateNNF : Formula -> Formula
 calculateNNF formula =
-    case replaceImplXorEqual formula of
+    case replaceImplXorEquiv formula of
         Neg (Neg a) ->
             calculateNNF a
 
