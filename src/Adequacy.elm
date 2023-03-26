@@ -197,7 +197,7 @@ renderPostConditions list =
                 , th [] [ text "not monotone:" ]
                 , th [] [ text "not self-dual:" ]
                 , th [] [ text "not affine:" ]
-                , th [] [ text "adequat" ]
+                , th [] [ text "adequate" ]
                 ]
                 :: List.indexedMap
                     (\index formula ->
