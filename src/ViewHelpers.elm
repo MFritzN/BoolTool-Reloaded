@@ -34,7 +34,7 @@ syntax =
             )
         , p [] [ text "The tool automatically transforms known symbols into their corresponding Unicode symbols on input. Direct Unicode input is also possible. Here you can find a few of the possible transformations: " ]
         , table [ class "table" ]
-            [ tr [] [ th [] [ text "Unicode" ], th [] [ text "ASCII" ], th [] [ text "LaTex" ] ]
+            [ tr [] [ th [] [ text "Unicode" ], th [] [ text "ASCII" ], th [] [ text "LaTeX" ] ]
             , tr []
                 [ td [] [ span [] [ text "¬" ] ], td [] [ text "~" ], td [] [ text "\\lnot" ] ]
             , tr []

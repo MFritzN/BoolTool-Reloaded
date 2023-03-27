@@ -212,7 +212,7 @@ renderPostConditions list =
                             , td []
                                 [ renderSelfDualness formula ]
                             , td []
-                                [ span [ attribute "data-tooltip" ("ANF: " ++ (toString <| ANF.listToANF <| ANF.calculateANF formula)) ] [ text (boolToSymbol (isNotAffine formula)) ] ]
+                                [ span [ attribute "data-tooltip" ("ANF: " ++ (ANF.postProcessANF <| toString <| ANF.listToANF <| ANF.calculateANF formula)) ] [ text (boolToSymbol (isNotAffine formula)) ] ]
                             , td []
                                 [ text (boolToSymbol (isAdequat [ formula ])) ]
                             ]

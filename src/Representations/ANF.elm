@@ -157,3 +157,5 @@ postProcessANF input =
     input
         |> String.replace "∧" "⋅"
         |> String.replace "∨" "+"
+        |> String.replace "⊤" "1"
+        |> String.replace "⊥" "0"
