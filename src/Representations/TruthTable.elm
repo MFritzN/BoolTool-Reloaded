@@ -69,6 +69,8 @@ calculateTruthTableHelp formula variables =
             ( Dict.values newVariables, evaluateUnsafe formula newVariables ) :: calculateTruthTableHelp formula newVariables
 
 
+{-| Sorts the input TruthTable so that input [1,1,...,1] comes first. Our implmentation would otherwise always return [0,0,...,0] first.
+-}
 sortTruthTable : TruthTable -> TruthTable
 sortTruthTable truthTable =
     let
